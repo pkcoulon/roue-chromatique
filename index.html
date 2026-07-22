@@ -1,0 +1,835 @@
+<title>Roue chromatique CIE L*a*b*</title>
+<style>
+  :root {
+    --bg: #F2F2F5;
+    --card: #FFFFFF;
+    --ink: #1C1C21;
+    --muted: #6B6B76;
+    --hairline: #DDDDE3;
+    --accent: #4A56C0;
+    --canvas-ground: #101014;
+    --input-bg: #F7F7FA;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101014;
+      --card: #16161B;
+      --ink: #E8E8EC;
+      --muted: #9A9AA2;
+      --hairline: #2A2A32;
+      --accent: #8B94E8;
+      --input-bg: #1C1C22;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #101014;
+    --card: #16161B;
+    --ink: #E8E8EC;
+    --muted: #9A9AA2;
+    --hairline: #2A2A32;
+    --accent: #8B94E8;
+    --input-bg: #1C1C22;
+  }
+  :root[data-theme="light"] {
+    --bg: #F2F2F5;
+    --card: #FFFFFF;
+    --ink: #1C1C21;
+    --muted: #6B6B76;
+    --hairline: #DDDDE3;
+    --accent: #4A56C0;
+    --input-bg: #F7F7FA;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  code, .mono, input[type="number"] {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  header {
+    padding: 22px 28px 14px;
+    border-bottom: 1px solid var(--hairline);
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  }
+  header h1 {
+    margin: 0;
+    font-family: Optima, Candara, "Gill Sans", "Segoe UI", sans-serif;
+    font-size: 22px; font-weight: 600; letter-spacing: 0.01em;
+  }
+  header p { margin: 0; color: var(--muted); font-size: 13px; }
+
+  .app {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 20px;
+    padding: 20px 28px 40px;
+    max-width: 1480px;
+  }
+  @media (max-width: 980px) { .app { grid-template-columns: 1fr; } }
+
+  /* ---------- Colonne palette ---------- */
+  aside .bloc {
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    padding: 14px 16px 16px;
+  }
+  aside { display: flex; flex-direction: column; gap: 16px; }
+  aside h2, main h2 {
+    margin: 0 0 10px;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .pts { display: flex; flex-direction: column; gap: 10px; }
+  .pt {
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+    padding: 8px 10px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .pt-top { display: grid; grid-template-columns: 22px 1fr 24px; gap: 8px; align-items: center; }
+  .sw {
+    width: 22px; height: 22px; border-radius: 5px;
+    border: 1px solid rgba(0,0,0,.25);
+  }
+  .pt-nums {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr) auto;
+    gap: 6px; align-items: center;
+  }
+  .pt-nums label {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 11px; color: var(--muted);
+  }
+  .pt-nums code { font-size: 11px; color: var(--muted); justify-self: end; }
+  input[type="text"], input[type="number"] {
+    width: 100%;
+    background: var(--input-bg);
+    color: var(--ink);
+    border: 1px solid var(--hairline);
+    border-radius: 5px;
+    padding: 4px 6px;
+    font-size: 13px;
+  }
+  input[type="number"] { padding: 3px 4px; font-size: 12px; }
+  input:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  button {
+    background: var(--input-bg);
+    color: var(--ink);
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.suppr {
+    padding: 0; width: 24px; height: 24px; line-height: 1;
+    font-size: 15px; color: var(--muted); border: none; background: none;
+  }
+  button.suppr:hover { color: #C84A4A; }
+  .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+
+  .reglage { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+  .reglage:last-child { margin-bottom: 0; }
+  .reglage .ligne { display: flex; justify-content: space-between; align-items: baseline; }
+  .reglage label { font-size: 13px; }
+  .reglage output { font-size: 12px; color: var(--muted); }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+  /* ---------- Cartes graphiques ---------- */
+  main {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-content: start;
+  }
+  @media (max-width: 1240px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    padding: 14px 16px 16px;
+    min-width: 0;
+  }
+  .card.large { grid-column: 1 / -1; }
+  .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .card-head button { padding: 2px 10px; font-size: 11px; }
+  .zone-canvas {
+    background: var(--canvas-ground);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  canvas { display: block; width: 100%; height: auto; }
+  #cv-roue, #cv-3d { aspect-ratio: 1; }
+  #cv-lc { aspect-ratio: 10 / 7; }
+  .vues { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .note { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+</style>
+
+<header>
+  <h1>Roue chromatique CIE L*a*b*</h1>
+  <p>Palette en coordonnées Lab — roue a*/b*, solide sRGB 3D, plan luminosité/chroma avec limites de MacAdam.</p>
+</header>
+
+<div class="app">
+  <aside>
+    <div class="bloc">
+      <h2>Palette</h2>
+      <div class="pts" id="liste-points"></div>
+      <div class="actions">
+        <button id="btn-ajouter">+ Ajouter un point</button>
+        <button id="btn-reset">Réinitialiser</button>
+      </div>
+    </div>
+    <div class="bloc">
+      <h2>Réglages</h2>
+      <div class="reglage">
+        <div class="ligne">
+          <label for="reg-lfond">Luminosité L* du fond de la roue</label>
+          <output id="out-lfond">70</output>
+        </div>
+        <input type="range" id="reg-lfond" min="5" max="95" step="1" value="70">
+      </div>
+      <div class="reglage">
+        <div class="ligne">
+          <label for="reg-cmax">Chroma max de la roue</label>
+          <output id="out-cmax">120</output>
+        </div>
+        <input type="range" id="reg-cmax" min="60" max="160" step="5" value="120">
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <section class="card">
+      <div class="card-head"><h2>Roue a* / b*</h2><button data-png="cv-roue">PNG ↓</button></div>
+      <div class="zone-canvas"><canvas id="cv-roue"></canvas></div>
+      <p class="note">Chaque pixel est la conversion exacte Lab → sRGB à L* constant. Les points gardent leur propre L*.</p>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Solide des couleurs sRGB</h2><button data-png="cv-3d">PNG ↓</button></div>
+      <div class="zone-canvas"><canvas id="cv-3d"></canvas></div>
+      <div class="vues">
+        <button id="vue-droite">Remettre droit</button>
+        <button id="vue-dessus">Vue de dessus</button>
+        <button id="vue-face">Vue de face</button>
+      </div>
+      <p class="note">Glisser pour orbiter. Le nuage est la surface du cube sRGB projetée dans Lab.</p>
+    </section>
+
+    <section class="card large">
+      <div class="card-head"><h2>Luminosité / chroma</h2><button data-png="cv-lc">PNG ↓</button></div>
+      <div class="zone-canvas"><canvas id="cv-lc"></canvas></div>
+      <p class="note">La silhouette de fond est la limite des couleurs visibles par l'œil (couleurs optimales de MacAdam, surfaces sous D65) — aucune couleur réelle ne peut exister à sa droite.</p>
+    </section>
+  </main>
+</div>
+
+<script>
+'use strict';
+
+/* ================= Conversions colorimétriques (D65) ================= */
+
+const D65W = [0.95047, 1.00000, 1.08883];
+const DELTA = 6 / 29;
+
+function labToRgb(L, a, b) {
+  const fy = (L + 16) / 116, fx = fy + a / 500, fz = fy - b / 200;
+  const fi = t => t > DELTA ? t * t * t : 3 * DELTA * DELTA * (t - 4 / 29);
+  const X = D65W[0] * fi(fx), Y = D65W[1] * fi(fy), Z = D65W[2] * fi(fz);
+  let r = 3.2406 * X - 1.5372 * Y - 0.4986 * Z;
+  let g = -0.9689 * X + 1.8758 * Y + 0.0415 * Z;
+  let bb = 0.0557 * X - 0.2040 * Y + 1.0570 * Z;
+  const gam = c => {
+    c = Math.min(1, Math.max(0, c));
+    return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+  };
+  return [gam(r), gam(g), gam(bb)];
+}
+
+function rgbToLab(r, g, b) {
+  const lin = c => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  r = lin(r); g = lin(g); b = lin(b);
+  const X = 0.4124 * r + 0.3576 * g + 0.1805 * b;
+  const Y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  const Z = 0.0193 * r + 0.1192 * g + 0.9505 * b;
+  const f = t => t > DELTA ** 3 ? Math.cbrt(t) : t / (3 * DELTA * DELTA) + 4 / 29;
+  const fx = f(X / D65W[0]), fy = f(Y / D65W[1]), fz = f(Z / D65W[2]);
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+
+function rgbToHex(rgb) {
+  return '#' + rgb.map(c => Math.round(c * 255).toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+function rgbToCss(rgb) {
+  return `rgb(${Math.round(rgb[0] * 255)},${Math.round(rgb[1] * 255)},${Math.round(rgb[2] * 255)})`;
+}
+
+/* ============ Limite des couleurs visibles (MacAdam, D65) ============ */
+/* CMF CIE 1931 2° et SPD D65, 380–780 nm, pas 10 nm. */
+
+const CMF10 = [
+  [0.001368,0.000039,0.006450],[0.004243,0.000120,0.020050],[0.014310,0.000396,0.067850],
+  [0.043510,0.001210,0.207400],[0.134380,0.004000,0.645600],[0.283900,0.011600,1.385600],
+  [0.348280,0.023000,1.747060],[0.336200,0.038000,1.772110],[0.290800,0.060000,1.669200],
+  [0.195360,0.090980,1.287640],[0.095640,0.139020,0.812950],[0.032010,0.208020,0.465180],
+  [0.004900,0.323000,0.272000],[0.009300,0.503000,0.158200],[0.063270,0.710000,0.078250],
+  [0.165500,0.862000,0.042160],[0.290400,0.954000,0.020300],[0.433450,0.994950,0.008750],
+  [0.594500,0.995000,0.003900],[0.762100,0.952000,0.002100],[0.916300,0.870000,0.001650],
+  [1.026300,0.757000,0.001100],[1.062200,0.631000,0.000800],[1.002600,0.503000,0.000340],
+  [0.854450,0.381000,0.000190],[0.642400,0.265000,0.000050],[0.447900,0.175000,0.000020],
+  [0.283500,0.107000,0.000000],[0.164900,0.061000,0.000000],[0.087400,0.032000,0.000000],
+  [0.046770,0.017000,0.000000],[0.022700,0.008210,0.000000],[0.011359,0.004102,0.000000],
+  [0.005790,0.002091,0.000000],[0.002899,0.001047,0.000000],[0.001440,0.000520,0.000000],
+  [0.000690,0.000249,0.000000],[0.000332,0.000120,0.000000],[0.000166,0.000060,0.000000],
+  [0.000083,0.000030,0.000000],[0.000042,0.000015,0.000000]
+];
+const D65SPD10 = [
+  49.98,54.65,82.75,91.49,93.43,86.68,104.86,117.01,117.81,114.86,115.92,108.81,
+  109.35,107.80,104.79,107.69,104.41,104.05,100.00,96.33,95.79,88.69,90.01,89.60,
+  87.70,83.29,83.70,80.03,80.21,82.28,78.28,69.72,71.61,74.35,61.60,69.89,75.09,
+  63.59,46.42,66.81,63.38
+];
+
+function limiteVisible(nBandes = 81) {
+  // Interpolation 10 nm -> 2 nm, puis énumération des couleurs optimales
+  // (bandes spectrales cycliques) et enveloppe chroma max par tranche de L*.
+  const n10 = D65SPD10.length, pas = 5; // 5 sous-pas de 2 nm par pas de 10
+  const n = (n10 - 1) * pas + 1;
+  const pond = new Float64Array(n * 3);
+  let sy = 0;
+  for (let i = 0; i < n; i++) {
+    const j = Math.min(Math.floor(i / pas), n10 - 2), t = i / pas - j;
+    const s = D65SPD10[j] * (1 - t) + D65SPD10[j + 1] * t;
+    for (let k = 0; k < 3; k++) {
+      pond[i * 3 + k] = s * (CMF10[j][k] * (1 - t) + CMF10[j + 1][k] * t);
+    }
+    sy += pond[i * 3 + 1];
+  }
+  const blanc = [0, 0, 0];
+  for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) blanc[k] += pond[i * 3 + k];
+  for (let k = 0; k < 3; k++) blanc[k] /= blanc[1];
+
+  // Sommes cumulées sur le spectre doublé (repli cyclique -> pourpres).
+  const cum = new Float64Array((2 * n + 1) * 3);
+  for (let i = 0; i < 2 * n; i++) {
+    const src = (i % n) * 3;
+    for (let k = 0; k < 3; k++) cum[(i + 1) * 3 + k] = cum[i * 3 + k] + pond[src + k];
+  }
+
+  const bornes = new Float64Array(nBandes);   // chroma max par tranche de L*
+  const f = t => t > DELTA ** 3 ? Math.cbrt(t) : t / (3 * DELTA * DELTA) + 4 / 29;
+  for (let s = 0; s < n; s++) {
+    for (let w = 1; w < n; w++) {
+      const i0 = s * 3, i1 = (s + w) * 3;
+      const X = (cum[i1] - cum[i0]) / sy, Y = (cum[i1 + 1] - cum[i0 + 1]) / sy,
+            Z = (cum[i1 + 2] - cum[i0 + 2]) / sy;
+      const fx = f(X / blanc[0]), fy = f(Y / blanc[1]), fz = f(Z / blanc[2]);
+      const L = 116 * fy - 16;
+      const A = 500 * (fx - fy), B = 200 * (fy - fz);
+      const C = Math.hypot(A, B);
+      const idx = Math.min(nBandes - 1, Math.max(0, Math.floor(L / 100 * nBandes)));
+      if (C > bornes[idx]) bornes[idx] = C;
+    }
+  }
+  const centres = Array.from({ length: nBandes }, (_, i) => (i + 0.5) * 100 / nBandes);
+  return { L: centres, C: Array.from(bornes) };
+}
+
+/* ======================= État de l'application ======================= */
+
+const PALETTE_DEFAUT = [
+  { nom: 'Rouge vif',    L: 55, a:  70, b:  50 },
+  { nom: 'Orange',       L: 70, a:  40, b:  70 },
+  { nom: 'Jaune',        L: 90, a: -10, b:  85 },
+  { nom: 'Vert feuille', L: 60, a: -55, b:  45 },
+  { nom: 'Cyan',         L: 75, a: -35, b: -25 },
+  { nom: 'Bleu roi',     L: 45, a:  15, b: -60 },
+  { nom: 'Violet',       L: 40, a:  55, b: -50 },
+  { nom: 'Magenta',      L: 55, a:  75, b: -20 },
+  { nom: 'Gris neutre',  L: 60, a:   0, b:   0 }
+];
+
+let points = chargerPoints();
+let lFond = 70, cMax = 120;
+const MACADAM = limiteVisible();
+
+function chargerPoints() {
+  try {
+    const brut = JSON.parse(localStorage.getItem('rouelab.points.v1'));
+    if (Array.isArray(brut) && brut.length) return brut;
+  } catch (e) { /* palette par défaut */ }
+  return PALETTE_DEFAUT.map(p => ({ ...p }));
+}
+function sauverPoints() {
+  try { localStorage.setItem('rouelab.points.v1', JSON.stringify(points)); } catch (e) {}
+}
+
+/* Encres fixes des surfaces graphiques (toujours sombres). */
+const G = {
+  fond: '#101014', encre: '#E6E6EA', encre2: '#9A9AA2',
+  trait: '#3A3A42', pilule: 'rgba(26,26,32,0.9)', piluleBord: '#4A4A52'
+};
+
+/* ====================== Utilitaires canvas ====================== */
+
+function prepCanvas(cv) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w, h };
+}
+
+function pilule(ctx, x, y, texte, align = 'left') {
+  ctx.font = '11px ui-monospace, Menlo, monospace';
+  const larg = ctx.measureText(texte).width + 14, haut = 18;
+  let x0 = align === 'left' ? x : align === 'right' ? x - larg : x - larg / 2;
+  const y0 = y - haut / 2;
+  ctx.fillStyle = G.pilule;
+  ctx.strokeStyle = G.piluleBord;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(x0, y0, larg, haut, 5);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = G.encre;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(texte, x0 + 7, y + 0.5);
+  return [x0, x0 + larg, y0, y0 + haut];
+}
+
+/* ==================== Roue du plan (a, b) ==================== */
+
+const cvRoue = document.getElementById('cv-roue');
+let cacheDisque = null, cacheCle = '';
+
+function disqueOffscreen(res) {
+  const cle = `${lFond}|${cMax}|${res}`;
+  if (cacheCle === cle) return cacheDisque;
+  const off = document.createElement('canvas');
+  off.width = res; off.height = res;
+  const ctx = off.getContext('2d');
+  const img = ctx.createImageData(res, res);
+  const d = img.data;
+  const liss = 1.5 * (2 * cMax / res);
+  for (let y = 0; y < res; y++) {
+    const b = (1 - 2 * y / (res - 1)) * cMax;
+    for (let x = 0; x < res; x++) {
+      const a = (2 * x / (res - 1) - 1) * cMax;
+      const c = Math.hypot(a, b);
+      const alpha = Math.min(1, Math.max(0, (cMax - c) / liss));
+      if (alpha <= 0) continue;
+      const rgb = labToRgb(lFond, a, b);
+      const i = (y * res + x) * 4;
+      d[i] = rgb[0] * 255; d[i + 1] = rgb[1] * 255; d[i + 2] = rgb[2] * 255;
+      d[i + 3] = alpha * 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  cacheDisque = off; cacheCle = cle;
+  return off;
+}
+
+function dessinerRoue() {
+  const { ctx, w, h } = prepCanvas(cvRoue);
+  ctx.fillStyle = G.fond; ctx.fillRect(0, 0, w, h);
+  const cx = w / 2, cy = h / 2;
+  const R = Math.min(w, h) / 2 - 44;              // rayon du disque en px
+  const ech = R / cMax;
+
+  const off = disqueOffscreen(480);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(off, cx - R, cy - R, 2 * R, 2 * R);
+
+  // Croix centrale + cercles de chroma
+  ctx.strokeStyle = G.trait; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy);
+  ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R);
+  ctx.stroke();
+  ctx.setLineDash([2, 4]);
+  for (let c = 40; c < cMax; c += 40) {
+    ctx.beginPath(); ctx.arc(cx, cy, c * ech, 0, 7); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = '10px ui-monospace, Menlo, monospace';
+    ctx.fillStyle = G.encre2; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    ctx.fillText(String(c), cx + c * ech * 0.7071 + 3, cy - c * ech * 0.7071 - 3);
+    ctx.setLineDash([2, 4]);
+  }
+  ctx.setLineDash([]);
+  ctx.strokeStyle = G.encre2; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke();
+
+  // Directions d'axes
+  ctx.fillStyle = G.encre2;
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.textAlign = 'left';  ctx.textBaseline = 'middle';
+  ctx.fillText('+a* rouge', cx + R + 8, cy);
+  ctx.textAlign = 'right'; ctx.fillText('−a* vert', cx - R - 8, cy);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText('+b* jaune', cx, cy - R - 8);
+  ctx.textBaseline = 'top'; ctx.fillText('−b* bleu', cx, cy + R + 8);
+
+  // Points
+  for (const p of points) {
+    const rgb = labToRgb(p.L, p.a, p.b);
+    const px = cx + p.a * ech, py = cy - p.b * ech;
+    ctx.beginPath(); ctx.arc(px, py, 9, 0, 7);
+    ctx.fillStyle = rgbToCss(rgb); ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = p.L < 50 ? '#FFFFFF' : '#000000';
+    ctx.stroke();
+
+    const norme = Math.hypot(p.a, p.b);
+    const ux = norme > 1e-9 ? p.a / norme : 0.35, uy = norme > 1e-9 ? p.b / norme : 0.9;
+    const lx = px + ux * 20, ly = py - uy * 20;
+    const align = Math.abs(ux) < 0.4 ? 'center' : ux > 0 ? 'left' : 'right';
+    pilule(ctx, lx, ly, `${p.nom} · ${rgbToHex(rgb)}`, align);
+  }
+}
+
+/* ==================== Solide 3D des couleurs sRGB ==================== */
+
+const cv3d = document.getElementById('cv-3d');
+let elev = 22, azim = -55;
+const NUAGE = (() => {
+  const n = 40, pts = [];
+  const faces = [];
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const u = i / (n - 1), v = j / (n - 1);
+    faces.push([0, u, v], [1, u, v], [u, 0, v], [u, 1, v], [u, v, 0], [u, v, 1]);
+  }
+  for (const [r, g, b] of faces) {
+    const [L, a, bb] = rgbToLab(r, g, b);
+    pts.push({ a, b: bb, L, css: rgbToCss([r, g, b]) });
+  }
+  return pts;
+})();
+
+function projecteur(w, h) {
+  const az = azim * Math.PI / 180, el = elev * Math.PI / 180;
+  const cA = Math.cos(az), sA = Math.sin(az), cE = Math.cos(el), sE = Math.sin(el);
+  const s = Math.min(w, h) / 320;
+  const cx = w / 2, cy = h / 2 + 10;
+  return (a, b, L) => {
+    const x1 = a * cA - b * sA;
+    const y1 = a * sA + b * cA;
+    const z = (L - 50) * 1.35;
+    return {
+      x: cx + x1 * s,
+      y: cy - (z * cE - y1 * sE) * s,
+      prof: y1 * cE + z * sE
+    };
+  };
+}
+
+function dessiner3d() {
+  const { ctx, w, h } = prepCanvas(cv3d);
+  ctx.fillStyle = G.fond; ctx.fillRect(0, 0, w, h);
+  const proj = projecteur(w, h);
+
+  // Grille au sol (plan L* = 0) + axe des gris
+  ctx.strokeStyle = '#22222A'; ctx.lineWidth = 1;
+  for (let v = -120; v <= 120; v += 40) {
+    let p1 = proj(v, -120, 0), p2 = proj(v, 120, 0);
+    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+    p1 = proj(-120, v, 0); p2 = proj(120, v, 0);
+    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+  }
+  const g0 = proj(0, 0, 0), g1 = proj(0, 0, 100);
+  ctx.setLineDash([3, 4]); ctx.strokeStyle = G.encre2;
+  ctx.beginPath(); ctx.moveTo(g0.x, g0.y); ctx.lineTo(g1.x, g1.y); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Étiquettes d'axes
+  ctx.fillStyle = G.encre2; ctx.font = '11px -apple-system, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const ea = proj(145, 0, 0), eb = proj(0, 145, 0), el2 = proj(0, 0, 112);
+  ctx.fillText('a*', ea.x, ea.y);
+  ctx.fillText('b*', eb.x, eb.y);
+  ctx.fillText('L*', el2.x, el2.y);
+
+  // Nuage trié par profondeur (loin -> près), semi-transparent
+  const projete = NUAGE.map(p => ({ ...proj(p.a, p.b, p.L), css: p.css }));
+  projete.sort((u, v) => u.prof - v.prof);
+  ctx.globalAlpha = 0.5;
+  for (const p of projete) {
+    ctx.fillStyle = p.css;
+    ctx.fillRect(p.x - 1.1, p.y - 1.1, 2.2, 2.2);
+  }
+  ctx.globalAlpha = 1;
+
+  // Points de la palette : ligne de rappel + marqueur + nom
+  for (const p of points) {
+    const rgb = labToRgb(p.L, p.a, p.b);
+    const bas = proj(p.a, p.b, 0), haut = proj(p.a, p.b, p.L);
+    ctx.setLineDash([1, 3]); ctx.strokeStyle = G.encre2; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(bas.x, bas.y); ctx.lineTo(haut.x, haut.y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(bas.x, bas.y, 1.8, 0, 7);
+    ctx.fillStyle = G.encre2; ctx.fill();
+
+    ctx.beginPath(); ctx.arc(haut.x, haut.y, 7, 0, 7);
+    ctx.fillStyle = rgbToCss(rgb); ctx.fill();
+    ctx.lineWidth = 1.6; ctx.strokeStyle = p.L < 50 ? '#FFFFFF' : '#000000';
+    ctx.stroke();
+
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.fillStyle = G.encre; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.strokeStyle = G.fond; ctx.lineWidth = 3;
+    ctx.strokeText(p.nom, haut.x, haut.y - 10);
+    ctx.fillText(p.nom, haut.x, haut.y - 10);
+  }
+}
+
+/* Orbite à la souris / au doigt */
+let glisse = null;
+cv3d.addEventListener('pointerdown', e => {
+  glisse = { x: e.clientX, y: e.clientY };
+  cv3d.setPointerCapture(e.pointerId);
+});
+cv3d.addEventListener('pointermove', e => {
+  if (!glisse) return;
+  azim += (e.clientX - glisse.x) * 0.4;
+  elev = Math.min(90, Math.max(-10, elev + (e.clientY - glisse.y) * 0.4));
+  glisse = { x: e.clientX, y: e.clientY };
+  requestAnimationFrame(dessiner3d);
+});
+cv3d.addEventListener('pointerup', () => { glisse = null; });
+cv3d.style.touchAction = 'none';
+cv3d.style.cursor = 'grab';
+
+function allerVue(e2, a2) {
+  const reduit = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduit) { elev = e2; azim = a2; dessiner3d(); return; }
+  const e1 = elev, a1 = azim, debut = performance.now(), duree = 400;
+  const pas = t => {
+    const k = Math.min(1, (t - debut) / duree), s = k * k * (3 - 2 * k);
+    elev = e1 + (e2 - e1) * s; azim = a1 + (a2 - a1) * s;
+    dessiner3d();
+    if (k < 1) requestAnimationFrame(pas);
+  };
+  requestAnimationFrame(pas);
+}
+document.getElementById('vue-droite').onclick = () => allerVue(22, -55);
+document.getElementById('vue-dessus').onclick = () => allerVue(90, -90);
+document.getElementById('vue-face').onclick = () => allerVue(0, -90);
+
+/* ==================== Plan luminosité / chroma ==================== */
+
+const cvLc = document.getElementById('cv-lc');
+
+function dessinerLc() {
+  const { ctx, w, h } = prepCanvas(cvLc);
+  ctx.fillStyle = G.fond; ctx.fillRect(0, 0, w, h);
+
+  const m = { g: 52, d: 18, ht: 16, b: 44 };
+  const xMax = Math.max(cMax, Math.max(...MACADAM.C)) * 1.06;
+  const X = c => m.g + c / xMax * (w - m.g - m.d);
+  const Y = L => h - m.b - L / 100 * (h - m.ht - m.b);
+
+  // Silhouette MacAdam
+  ctx.beginPath();
+  ctx.moveTo(X(0), Y(MACADAM.L[0]));
+  for (let i = 0; i < MACADAM.L.length; i++) ctx.lineTo(X(MACADAM.C[i]), Y(MACADAM.L[i]));
+  ctx.lineTo(X(0), Y(MACADAM.L[MACADAM.L.length - 1]));
+  ctx.closePath();
+  ctx.fillStyle = '#1E1E26'; ctx.fill();
+  ctx.strokeStyle = G.trait; ctx.lineWidth = 1; ctx.stroke();
+
+  // Grille + axes
+  ctx.font = '10px ui-monospace, Menlo, monospace';
+  ctx.fillStyle = G.encre2;
+  ctx.strokeStyle = '#22222A';
+  for (let c = 0; c <= xMax; c += 25) {
+    ctx.beginPath(); ctx.moveTo(X(c), Y(0)); ctx.lineTo(X(c), Y(100));
+    ctx.setLineDash([2, 4]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(String(c), X(c), Y(0) + 6);
+  }
+  for (let L = 0; L <= 100; L += 20) {
+    ctx.beginPath(); ctx.moveTo(X(0), Y(L)); ctx.lineTo(X(xMax), Y(L));
+    ctx.setLineDash([2, 4]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(L), m.g - 8, Y(L));
+  }
+  ctx.fillStyle = G.encre2; ctx.font = '12px -apple-system, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText('Chroma C* = √(a*² + b*²)', (m.g + w - m.d) / 2, h - 6);
+  ctx.save();
+  ctx.translate(14, (Y(0) + Y(100)) / 2); ctx.rotate(-Math.PI / 2);
+  ctx.fillText('L* (luminosité)', 0, 0);
+  ctx.restore();
+
+  // Quadrants (seuils à 50) + libellés de zones
+  ctx.strokeStyle = 'rgba(154,154,162,0.5)'; ctx.setLineDash([6, 4]);
+  ctx.beginPath(); ctx.moveTo(X(0), Y(50)); ctx.lineTo(X(xMax), Y(50)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(X(50), Y(0)); ctx.lineTo(X(50), Y(100)); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font = 'italic 700 15px -apple-system, sans-serif';
+  ctx.fillStyle = 'rgba(154,154,162,0.5)';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('CLAIR',   X(25),               Y(75));
+  ctx.fillText('TERNE',   X(25),               Y(25));
+  ctx.fillText('SATURÉ',  X((50 + xMax) / 2),  Y(75));
+  ctx.fillText('PROFOND', X((50 + xMax) / 2),  Y(25));
+
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  ctx.fillText('limite des couleurs visibles (MacAdam, D65)', X(xMax) - 6, Y(8));
+
+  // Points avec placement d'étiquettes au score de recouvrement minimal
+  const dirs = [[12, -12, 'left'], [-12, -12, 'right'], [12, 16, 'left'], [-12, 16, 'right']];
+  const cadres = [];
+  const marqueurs = points.map(p => ({ x: X(Math.hypot(p.a, p.b)), y: Y(p.L) }));
+
+  const aire = (r1, r2) =>
+    Math.max(0, Math.min(r1[1], r2[1]) - Math.max(r1[0], r2[0])) *
+    Math.max(0, Math.min(r1[3], r2[3]) - Math.max(r1[2], r2[2]));
+
+  points.forEach((p, i) => {
+    const rgb = labToRgb(p.L, p.a, p.b);
+    const texte = `${p.nom} · ${rgbToHex(rgb)}`;
+    const { x, y } = marqueurs[i];
+
+    ctx.beginPath(); ctx.arc(x, y, 9, 0, 7);
+    ctx.fillStyle = rgbToCss(rgb); ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = p.L < 50 ? '#FFFFFF' : '#000000';
+    ctx.stroke();
+
+    ctx.font = '11px ui-monospace, Menlo, monospace';
+    const larg = ctx.measureText(texte).width + 14;
+    const cadreDe = ([dx, dy, al]) => {
+      const x0 = al === 'left' ? x + dx : x + dx - larg;
+      return [x0, x0 + larg, y + dy - 9, y + dy + 9];
+    };
+    let meilleur = dirs[0], scoreMin = Infinity;
+    for (const d of dirs) {
+      const c = cadreDe(d);
+      let s = cadres.reduce((t, k) => t + aire(c, k), 0);
+      marqueurs.forEach((mq, j) => {
+        if (j !== i) s += 10 * aire(c, [mq.x - 11, mq.x + 11, mq.y - 11, mq.y + 11]);
+      });
+      if (s < scoreMin) { scoreMin = s; meilleur = d; }
+    }
+    const c = cadreDe(meilleur);
+    cadres.push(c);
+    pilule(ctx, meilleur[2] === 'left' ? x + meilleur[0] : x + meilleur[0],
+           y + meilleur[1], texte, meilleur[2]);
+  });
+}
+
+/* ==================== Éditeur de palette ==================== */
+
+const listeEl = document.getElementById('liste-points');
+
+function rendreListe() {
+  listeEl.textContent = '';
+  points.forEach((p, i) => {
+    const rgb = labToRgb(p.L, p.a, p.b);
+    const div = document.createElement('div');
+    div.className = 'pt';
+    div.innerHTML = `
+      <div class="pt-top">
+        <span class="sw" style="background:${rgbToCss(rgb)}"></span>
+        <input type="text" value="" aria-label="Nom du point">
+        <button class="suppr" title="Supprimer" aria-label="Supprimer ce point">✕</button>
+      </div>
+      <div class="pt-nums">
+        <label>L <input type="number" min="0" max="100" step="1" value="${p.L}"></label>
+        <label>a <input type="number" min="-128" max="127" step="1" value="${p.a}"></label>
+        <label>b <input type="number" min="-128" max="127" step="1" value="${p.b}"></label>
+        <code>${rgbToHex(rgb)}</code>
+      </div>`;
+    const [nomInp] = div.querySelectorAll('input[type="text"]');
+    nomInp.value = p.nom;
+    const nums = div.querySelectorAll('input[type="number"]');
+    nomInp.addEventListener('input', () => { p.nom = nomInp.value; majTout(false); });
+    ['L', 'a', 'b'].forEach((cle, k) => {
+      nums[k].addEventListener('input', () => {
+        const v = parseFloat(nums[k].value);
+        if (!Number.isNaN(v)) { p[cle] = v; majTout(false); }
+      });
+    });
+    div.querySelector('.suppr').addEventListener('click', () => {
+      points.splice(i, 1); majTout(true);
+    });
+    listeEl.appendChild(div);
+  });
+}
+
+document.getElementById('btn-ajouter').addEventListener('click', () => {
+  points.push({ nom: 'Nouveau', L: 60, a: 20, b: 20 });
+  majTout(true);
+});
+document.getElementById('btn-reset').addEventListener('click', () => {
+  points = PALETTE_DEFAUT.map(p => ({ ...p }));
+  majTout(true);
+});
+
+/* ==================== Réglages ==================== */
+
+const regL = document.getElementById('reg-lfond');
+const regC = document.getElementById('reg-cmax');
+regL.addEventListener('input', () => {
+  lFond = +regL.value;
+  document.getElementById('out-lfond').textContent = regL.value;
+  requestAnimationFrame(dessinerRoue);
+});
+regC.addEventListener('input', () => {
+  cMax = +regC.value;
+  document.getElementById('out-cmax').textContent = regC.value;
+  requestAnimationFrame(() => { dessinerRoue(); dessinerLc(); });
+});
+
+/* ==================== Export PNG ==================== */
+
+document.querySelectorAll('[data-png]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const cv = document.getElementById(btn.dataset.png);
+    const a = document.createElement('a');
+    a.download = btn.dataset.png.replace('cv-', 'roue-lab-') + '.png';
+    a.href = cv.toDataURL('image/png');
+    a.click();
+  });
+});
+
+/* ==================== Orchestration ==================== */
+
+function redessiner() { dessinerRoue(); dessiner3d(); dessinerLc(); }
+
+function majTout(refaireListe) {
+  sauverPoints();
+  if (refaireListe) rendreListe();
+  else {
+    // Rafraîchit seulement pastilles et hex sans reconstruire les champs
+    listeEl.querySelectorAll('.pt').forEach((el, i) => {
+      const p = points[i];
+      if (!p) return;
+      const rgb = labToRgb(p.L, p.a, p.b);
+      el.querySelector('.sw').style.background = rgbToCss(rgb);
+      el.querySelector('code').textContent = rgbToHex(rgb);
+    });
+  }
+  requestAnimationFrame(redessiner);
+}
+
+new ResizeObserver(() => requestAnimationFrame(redessiner)).observe(document.querySelector('main'));
+
+rendreListe();
+redessiner();
+</script>
