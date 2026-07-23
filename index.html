@@ -78,12 +78,47 @@
   }
   @media (max-width: 980px) { .app { grid-template-columns: 1fr; } }
 
-  /* ---------- Colonne palette ---------- */
-  aside .bloc {
+  /* ---------- Colonne palette : panneaux accordéon ---------- */
+  aside details.bloc {
     background: var(--card);
     border: 1px solid var(--hairline);
     border-radius: 8px;
-    padding: 14px 16px 16px;
+    overflow: hidden;
+  }
+  aside details.bloc > summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 12px 16px;
+    display: flex; align-items: center; gap: 8px;
+    user-select: none;
+  }
+  aside details.bloc > summary::-webkit-details-marker { display: none; }
+  aside details.bloc > summary:hover { background: var(--input-bg); }
+  aside details.bloc > summary h2 { margin: 0; }
+  aside details.bloc > summary::before {
+    content: '▸';
+    color: var(--muted);
+    font-size: 12px;
+    transition: transform 0.15s;
+  }
+  aside details.bloc[open] > summary::before { transform: rotate(90deg); }
+  aside summary .badge {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+  .bloc-corps { padding: 2px 16px 16px; }
+
+  /* Dépliage animé (navigateurs récents ; bascule instantanée sinon) */
+  @supports (interpolate-size: allow-keywords) {
+    :root { interpolate-size: allow-keywords; }
+    aside details::details-content {
+      block-size: 0;
+      overflow-y: clip;
+      transition: block-size 0.25s ease, content-visibility 0.25s allow-discrete;
+    }
+    aside details[open]::details-content { block-size: auto; }
   }
   aside { display: flex; flex-direction: column; gap: 16px; }
   aside h2, main h2 {
@@ -162,6 +197,12 @@
     cursor: pointer;
   }
   button:hover { border-color: var(--accent); color: var(--accent); }
+  button.danger { color: #C84A4A; }
+  button.danger:hover { border-color: #C84A4A; color: #C84A4A; }
+  button.danger-plein {
+    background: #C84A4A; border-color: #C84A4A; color: #FFFFFF;
+  }
+  button.danger-plein:hover { background: #A93C3C; border-color: #A93C3C; color: #FFFFFF; }
   button.suppr {
     padding: 0; width: 24px; height: 24px; line-height: 1;
     font-size: 15px; color: var(--muted); border: none; background: none;
@@ -283,16 +324,19 @@
 
 <div class="app">
   <aside>
-    <div class="bloc">
-      <h2>Palette</h2>
-      <div class="pts" id="liste-points"></div>
-      <div class="actions">
-        <button id="btn-ajouter">+ Ajouter un point</button>
-        <button id="btn-reset">Réinitialiser</button>
+    <details class="bloc">
+      <summary><h2>Palette</h2><span class="badge" id="badge-palette"></span></summary>
+      <div class="bloc-corps">
+        <div class="pts" id="liste-points"></div>
+        <div class="actions">
+          <button id="btn-ajouter">+ Ajouter un point</button>
+          <button id="btn-reset">Réinitialiser</button>
+        </div>
       </div>
-    </div>
-    <div class="bloc" id="bloc-bib">
-      <h2>Bibliothèque</h2>
+    </details>
+    <details class="bloc" id="bloc-bib">
+      <summary><h2>Bibliothèque</h2><span class="badge" id="badge-bib"></span></summary>
+      <div class="bloc-corps">
       <div id="bib-dossiers"></div>
       <div class="actions">
         <button id="btn-save">💾 Enregistrer</button>
@@ -310,9 +354,11 @@
         </div>
       </div>
       <p class="note" id="bib-note">Enregistré sur votre compte. Exportez le fichier JSON pour partager ou garder une copie.</p>
-    </div>
-    <div class="bloc">
-      <h2>Réglages</h2>
+      </div>
+    </details>
+    <details class="bloc">
+      <summary><h2>Réglages</h2></summary>
+      <div class="bloc-corps">
       <div class="reglage">
         <div class="ligne">
           <label for="reg-lfond">Luminosité L* du fond de la roue</label>
@@ -327,12 +373,26 @@
         </div>
         <input type="range" id="reg-cmax" min="60" max="160" step="5" value="120">
       </div>
-    </div>
-    <div class="bloc" id="bloc-compte" hidden>
-      <h2>Compte</h2>
-      <p class="note" id="cpt-qui" style="margin:0 0 8px"></p>
-      <div class="actions" style="margin-top:0"><button id="cpt-deconnexion">Se déconnecter</button></div>
-    </div>
+      </div>
+    </details>
+    <details class="bloc" id="bloc-compte" hidden>
+      <summary><h2>Compte</h2></summary>
+      <div class="bloc-corps">
+        <p class="note" id="cpt-qui" style="margin:0 0 8px"></p>
+        <div class="actions" style="margin-top:0">
+          <button id="cpt-deconnexion">Se déconnecter</button>
+          <button id="cpt-supprimer" class="danger">Supprimer le compte</button>
+        </div>
+        <div id="confirm-suppr" hidden>
+          <p class="note">⚠️ Supprime définitivement le compte et toutes les palettes enregistrées. Cette action est irréversible.</p>
+          <div class="actions">
+            <button id="suppr-oui" class="danger-plein">Oui, tout supprimer</button>
+            <button id="suppr-non">Annuler</button>
+          </div>
+          <p class="note" id="suppr-msg" style="margin-top:8px"></p>
+        </div>
+      </div>
+    </details>
   </aside>
 
   <main>
@@ -1012,6 +1072,7 @@ cvLc.addEventListener('pointerleave', () => {
 const listeEl = document.getElementById('liste-points');
 
 function rendreListe() {
+  document.getElementById('badge-palette').textContent = points.length;
   listeEl.textContent = '';
   points.forEach((p, i) => {
     const rgb = labToRgb(p.L, p.a, p.b);
@@ -1093,6 +1154,8 @@ function armerSuppr(btn, action) {
 }
 
 function rendreBib() {
+  const total = bib.dossiers.reduce((t, d) => t + d.palettes.length, 0);
+  document.getElementById('badge-bib').textContent = total || '';
   const zone = document.getElementById('bib-dossiers');
   zone.textContent = '';
   if (!bib.dossiers.length) {
@@ -1278,6 +1341,28 @@ function initCompte() {
     if (e.key === 'Enter') connexionCompte();
   });
   document.getElementById('cpt-deconnexion').addEventListener('click', () => fbAuth.signOut());
+
+  /* Suppression du compte : confirmation en deux temps contre les missclicks. */
+  const confirmSuppr = document.getElementById('confirm-suppr');
+  document.getElementById('cpt-supprimer').addEventListener('click', () => {
+    confirmSuppr.hidden = !confirmSuppr.hidden;
+    document.getElementById('suppr-msg').textContent = '';
+  });
+  document.getElementById('suppr-non').addEventListener('click', () => { confirmSuppr.hidden = true; });
+  document.getElementById('suppr-oui').addEventListener('click', async () => {
+    const msg = document.getElementById('suppr-msg');
+    msg.textContent = 'Suppression…';
+    try {
+      // 1. Effacer toutes les données du compte, 2. supprimer le compte lui-même.
+      await fbDb.collection('bibliotheques').doc(utilisateur.uid).delete();
+      await fbAuth.currentUser.delete();
+      confirmSuppr.hidden = true;   // la porte de connexion revient via onAuthStateChanged
+    } catch (e) {
+      msg.textContent = e.code === 'auth/requires-recent-login'
+        ? 'Par sécurité, déconnectez-vous puis reconnectez-vous avant de supprimer le compte.'
+        : `Suppression impossible : ${e.message}`;
+    }
+  });
 }
 
 /* Connexion uniquement — la création de comptes est désactivée côté serveur ;
