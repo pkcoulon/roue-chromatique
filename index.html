@@ -123,7 +123,30 @@
     padding: 4px 6px;
     font-size: 13px;
   }
-  #compte-off { display: flex; flex-direction: column; gap: 8px; }
+  /* ---------- Porte de connexion (bloque toute l'application) ---------- */
+  #porte {
+    position: fixed; inset: 0; z-index: 200;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  #porte[hidden] { display: none; }
+  .porte-carte {
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: 10px;
+    padding: 28px 30px;
+    width: 100%; max-width: 360px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .porte-carte h1 {
+    margin: 0 0 2px;
+    font-family: Optima, Candara, "Gill Sans", "Segoe UI", sans-serif;
+    font-size: 20px; font-weight: 600;
+  }
+  .porte-carte .note { margin: 0; }
+  #porte-form { display: flex; flex-direction: column; gap: 10px; }
+  #porte-form[hidden] { display: none; }
   input[type="number"] { padding: 3px 4px; font-size: 12px; }
   input:focus-visible, button:focus-visible {
     outline: 2px solid var(--accent);
@@ -239,6 +262,19 @@
 </head>
 <body>
 
+<div id="porte">
+  <div class="porte-carte">
+    <h1>Roue chromatique CIE L*a*b*</h1>
+    <p class="note" id="porte-attente">Chargement…</p>
+    <div id="porte-form" hidden>
+      <p class="note">Accès réservé — connectez-vous.</p>
+      <input type="email" id="porte-email" placeholder="Email" autocomplete="email">
+      <input type="password" id="porte-mdp" placeholder="Mot de passe" autocomplete="current-password">
+      <div class="actions" style="margin-top:0"><button id="porte-connexion">Se connecter</button></div>
+      <p class="note" id="porte-msg" style="margin:0"></p>
+    </div>
+  </div>
+</div>
 
 <header>
   <h1>Roue chromatique CIE L*a*b*</h1>
@@ -249,17 +285,8 @@
   <aside>
     <div class="bloc" id="bloc-compte" hidden>
       <h2>Compte</h2>
-      <div id="compte-off">
-        <input type="email" id="cpt-email" placeholder="Email" autocomplete="email">
-        <input type="password" id="cpt-mdp" placeholder="Mot de passe (8 caractères min.)" autocomplete="current-password">
-        <div class="actions" style="margin-top:0"><button id="cpt-connexion">Se connecter</button></div>
-        <p class="note" style="margin-top:0">Première connexion = création automatique du compte. La bibliothèque est alors synchronisée sur le compte.</p>
-        <p class="note" id="cpt-msg" style="margin-top:0"></p>
-      </div>
-      <div id="compte-on" hidden>
-        <p class="note" id="cpt-qui" style="margin:0 0 8px"></p>
-        <div class="actions" style="margin-top:0"><button id="cpt-deconnexion">Se déconnecter</button></div>
-      </div>
+      <p class="note" id="cpt-qui" style="margin:0 0 8px"></p>
+      <div class="actions" style="margin-top:0"><button id="cpt-deconnexion">Se déconnecter</button></div>
     </div>
     <div class="bloc">
       <h2>Palette</h2>
@@ -269,7 +296,7 @@
         <button id="btn-reset">Réinitialiser</button>
       </div>
     </div>
-    <div class="bloc">
+    <div class="bloc" id="bloc-bib">
       <h2>Bibliothèque</h2>
       <div id="bib-dossiers"></div>
       <div class="actions">
@@ -287,7 +314,7 @@
           <button id="save-annuler">Annuler</button>
         </div>
       </div>
-      <p class="note" id="bib-note">Enregistré dans ce navigateur. Exportez le fichier JSON pour sauvegarder ou partager.</p>
+      <p class="note" id="bib-note">Enregistré sur votre compte. Exportez le fichier JSON pour partager ou garder une copie.</p>
     </div>
     <div class="bloc">
       <h2>Réglages</h2>
@@ -1049,19 +1076,11 @@ regC.addEventListener('input', () => {
 
 /* ==================== Bibliothèque (dossiers + palettes) ==================== */
 
-let bib = chargerBib();
+/* La bibliothèque vit uniquement sur le compte — rien n'est stocké dans le
+   navigateur. Sauver = pousser vers le compte. */
+let bib = { dossiers: [] };
 
-function chargerBib() {
-  try {
-    const b = JSON.parse(localStorage.getItem('rouelab.bib.v1'));
-    if (b && Array.isArray(b.dossiers)) return b;
-  } catch (e) { /* bibliothèque vide */ }
-  return { dossiers: [] };
-}
-function sauverBib() {
-  try { localStorage.setItem('rouelab.bib.v1', JSON.stringify(bib)); } catch (e) {}
-  planifierPousseCloud();
-}
+function sauverBib() { planifierPousseCloud(); }
 
 /* Suppression en deux clics (pas de boîte de dialogue bloquante). */
 function armerSuppr(btn, action) {
@@ -1167,10 +1186,10 @@ document.getElementById('save-ok').addEventListener('click', () => {
 });
 
 const bibNote = document.getElementById('bib-note');
+const bibNoteInitiale = bibNote.textContent;
 function messageBib(txt) {
-  const initial = 'Enregistré dans ce navigateur. Exportez le fichier JSON pour sauvegarder ou partager.';
   bibNote.textContent = txt;
-  setTimeout(() => { bibNote.textContent = initial; }, 4000);
+  setTimeout(() => { bibNote.textContent = bibNoteInitiale; }, 4000);
 }
 
 document.getElementById('btn-export').addEventListener('click', () => {
@@ -1224,65 +1243,59 @@ const FIREBASE_CONFIG = {
 };
 
 let fbAuth = null, fbDb = null, utilisateur = null, minuterieCloud = null;
+const porte = document.getElementById('porte');
 
 if (window.firebase) {
   firebase.initializeApp(FIREBASE_CONFIG);
   fbAuth = firebase.auth();
   fbDb = firebase.firestore();
-  document.getElementById('bloc-compte').hidden = false;
   initCompte();
+} else {
+  document.getElementById('porte-attente').textContent =
+    "Impossible de charger le module d'authentification — vérifiez votre connexion puis rechargez la page.";
 }
 
-function messageCompte(txt) { document.getElementById('cpt-msg').textContent = txt; }
-
-function majUiCompte() {
-  document.getElementById('compte-off').hidden = !!utilisateur;
-  document.getElementById('compte-on').hidden = !utilisateur;
-  if (utilisateur) {
-    document.getElementById('cpt-qui').textContent =
-      `Connecté : ${utilisateur.email}. Bibliothèque synchronisée sur le compte.`;
-  }
-}
+function messagePorte(txt) { document.getElementById('porte-msg').textContent = txt; }
 
 function initCompte() {
   fbAuth.onAuthStateChanged(user => {
     const avant = utilisateur;
     utilisateur = user;
-    majUiCompte();
+    // La porte bloque toute l'application tant qu'on n'est pas connecté.
+    porte.hidden = !!user;
+    document.getElementById('porte-attente').hidden = true;
+    document.getElementById('porte-form').hidden = !!user;
+    document.getElementById('bloc-compte').hidden = !user;
+    if (user) {
+      document.getElementById('cpt-qui').textContent =
+        `Connecté : ${user.email}. Bibliothèque enregistrée sur le compte.`;
+    }
     if (user && !avant) chargerCloud();
+    if (!user) { bib.dossiers = []; rendreBib(); }
   });
-  document.getElementById('cpt-connexion').addEventListener('click', connexionCompte);
-  document.getElementById('cpt-mdp').addEventListener('keydown', e => {
+  document.getElementById('porte-connexion').addEventListener('click', connexionCompte);
+  document.getElementById('porte-mdp').addEventListener('keydown', e => {
     if (e.key === 'Enter') connexionCompte();
   });
-  document.getElementById('cpt-deconnexion').addEventListener('click', async () => {
-    await fbAuth.signOut();
-    messageCompte('');
-  });
+  document.getElementById('cpt-deconnexion').addEventListener('click', () => fbAuth.signOut());
 }
 
+/* Connexion uniquement — la création de comptes est désactivée côté serveur ;
+   les comptes sont créés à la main dans la console Firebase. */
 async function connexionCompte() {
-  const email = document.getElementById('cpt-email').value.trim();
-  const mdp = document.getElementById('cpt-mdp').value;
-  if (!email || mdp.length < 8) { messageCompte('Email et mot de passe de 8 caractères minimum.'); return; }
-  messageCompte('Connexion…');
+  const email = document.getElementById('porte-email').value.trim();
+  const mdp = document.getElementById('porte-mdp').value;
+  if (!email || !mdp) { messagePorte('Email et mot de passe requis.'); return; }
+  messagePorte('Connexion…');
   try {
     await fbAuth.signInWithEmailAndPassword(email, mdp);
-    messageCompte('');
+    messagePorte('');
+    document.getElementById('porte-mdp').value = '';
   } catch (e) {
-    if (e.code === 'auth/invalid-email') { messageCompte('Adresse email invalide.'); return; }
-    // Compte inexistant ou mot de passe incorrect ? On tente la création automatique.
-    try {
-      await fbAuth.createUserWithEmailAndPassword(email, mdp);
-      messageCompte('Compte créé.');
-    } catch (e2) {
-      messageCompte(e2.code === 'auth/email-already-in-use'
-        ? 'Mot de passe incorrect.'
-        : `Erreur : ${e2.message}`);
-      return;
-    }
+    messagePorte(e.code === 'auth/invalid-email'
+      ? 'Adresse email invalide.'
+      : 'Identifiants incorrects.');
   }
-  document.getElementById('cpt-mdp').value = '';
 }
 
 /* Fusion sans perte : union des dossiers par nom, des palettes par (nom, date). */
@@ -1302,12 +1315,20 @@ async function chargerCloud() {
   try {
     const doc = await fbDb.collection('bibliotheques').doc(utilisateur.uid).get();
     const donnees = doc.exists ? doc.data() : null;
-    const distants = (donnees && Array.isArray(donnees.dossiers)) ? donnees.dossiers : [];
-    bib.dossiers = fusionnerDossiers(distants, bib.dossiers);
-    sauverBib();   // déclenche aussi la pousse vers le compte
+    bib.dossiers = (donnees && Array.isArray(donnees.dossiers)) ? donnees.dossiers : [];
+    // Migration unique : une ancienne bibliothèque stockée dans le navigateur
+    // est transférée sur le compte puis effacée du navigateur.
+    try {
+      const ancien = JSON.parse(localStorage.getItem('rouelab.bib.v1'));
+      if (ancien && Array.isArray(ancien.dossiers) && ancien.dossiers.length) {
+        bib.dossiers = fusionnerDossiers(bib.dossiers, ancien.dossiers);
+        sauverBib();
+      }
+      localStorage.removeItem('rouelab.bib.v1');
+    } catch (e) { /* pas d'ancienne bibliothèque */ }
     rendreBib();
   } catch (e) {
-    messageCompte(`Lecture du compte impossible : ${e.message}`);
+    document.getElementById('cpt-qui').textContent = `Lecture du compte impossible : ${e.message}`;
   }
 }
 
@@ -1321,7 +1342,7 @@ function planifierPousseCloud() {
         maj: new Date().toISOString()
       });
     } catch (e) {
-      messageCompte(`Synchronisation impossible : ${e.message}`);
+      messageBib(`Synchronisation impossible : ${e.message}`);
     }
   }, 1200);
 }
