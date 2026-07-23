@@ -99,7 +99,7 @@
     padding: 8px 10px;
     display: flex; flex-direction: column; gap: 6px;
   }
-  .pt-top { display: grid; grid-template-columns: 22px 1fr 24px; gap: 8px; align-items: center; }
+  .pt-top { display: grid; grid-template-columns: 22px 1fr 24px 24px; gap: 6px; align-items: center; }
   .sw {
     width: 22px; height: 22px; border-radius: 5px;
     border: 1px solid rgba(0,0,0,.25);
@@ -143,7 +143,50 @@
     font-size: 15px; color: var(--muted); border: none; background: none;
   }
   button.suppr:hover { color: #C84A4A; }
+  button.suppr.confirme { color: #C84A4A; font-size: 10px; width: auto; padding: 0 4px; }
+  button.epingle {
+    padding: 0; width: 24px; height: 24px; line-height: 1;
+    font-size: 12px; border: none; background: none;
+    opacity: 0.3; filter: grayscale(1); cursor: pointer;
+  }
+  button.epingle.actif { opacity: 1; filter: none; }
+  button.epingle:hover { opacity: 1; }
   .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+
+  /* ---------- Bibliothèque ---------- */
+  .dossier { border: 1px solid var(--hairline); border-radius: 6px; margin-bottom: 8px; overflow: hidden; }
+  .dossier summary {
+    cursor: pointer; padding: 6px 10px; font-size: 13px;
+    display: flex; align-items: center; gap: 6px; list-style: none;
+  }
+  .dossier summary::-webkit-details-marker { display: none; }
+  .dossier summary::before { content: '▸'; color: var(--muted); transition: transform 0.15s; }
+  .dossier[open] summary::before { transform: rotate(90deg); }
+  .dossier summary .nom-dossier { flex: 1; }
+  .dossier summary .compte { color: var(--muted); font-size: 11px; }
+  .pal-ligne {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 10px 5px 22px; border-top: 1px solid var(--hairline);
+  }
+  .pal-ligne:hover { background: var(--input-bg); }
+  .apercu { display: flex; gap: 2px; flex: none; }
+  .apercu i { width: 10px; height: 10px; border-radius: 2px; }
+  .pal-nom {
+    flex: 1; background: none; border: none; padding: 2px 0;
+    color: var(--ink); font-size: 13px; text-align: left; cursor: pointer;
+  }
+  .pal-nom:hover { color: var(--accent); }
+  .bib-vide { color: var(--muted); font-size: 12px; margin: 0; }
+  #form-save {
+    display: none; flex-direction: column; gap: 8px;
+    margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hairline);
+  }
+  #form-save.ouvert { display: flex; }
+  #form-save select {
+    width: 100%; background: var(--input-bg); color: var(--ink);
+    border: 1px solid var(--hairline); border-radius: 5px;
+    padding: 5px 6px; font-size: 13px;
+  }
 
   .reglage { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
   .reglage:last-child { margin-bottom: 0; }
@@ -180,6 +223,17 @@
   #cv-lc { aspect-ratio: 10 / 7; }
   .vues { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
   .note { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+
+  /* ---------- Quasi plein écran ---------- */
+  .card-head .outils { display: flex; gap: 6px; align-items: center; }
+  .card.plein {
+    position: fixed; inset: 0; z-index: 60;
+    border-radius: 0; border: none; margin: 0;
+    display: flex; flex-direction: column;
+  }
+  .card.plein .zone-canvas { flex: 1; min-height: 0; }
+  .card.plein canvas { height: 100%; aspect-ratio: auto !important; }
+  body.a-plein { overflow: hidden; }
 </style>
 </head>
 <body>
@@ -199,6 +253,26 @@
         <button id="btn-ajouter">+ Ajouter un point</button>
         <button id="btn-reset">Réinitialiser</button>
       </div>
+    </div>
+    <div class="bloc">
+      <h2>Bibliothèque</h2>
+      <div id="bib-dossiers"></div>
+      <div class="actions">
+        <button id="btn-save">💾 Enregistrer</button>
+        <button id="btn-export" title="Télécharger la bibliothèque en JSON">Exporter</button>
+        <button id="btn-import" title="Charger un fichier JSON exporté">Importer</button>
+        <input type="file" id="fichier-import" accept="application/json,.json" hidden>
+      </div>
+      <div id="form-save">
+        <input type="text" id="save-nom" placeholder="Nom de la palette">
+        <select id="save-dossier" aria-label="Dossier de destination"></select>
+        <input type="text" id="save-nouveau" placeholder="Nom du nouveau dossier" hidden>
+        <div class="actions" style="margin-top:0">
+          <button id="save-ok">Enregistrer ici</button>
+          <button id="save-annuler">Annuler</button>
+        </div>
+      </div>
+      <p class="note" id="bib-note">Enregistré dans ce navigateur. Exportez le fichier JSON pour sauvegarder ou partager.</p>
     </div>
     <div class="bloc">
       <h2>Réglages</h2>
@@ -221,26 +295,32 @@
 
   <main>
     <section class="card">
-      <div class="card-head"><h2>Roue a* / b*</h2><button data-png="cv-roue">PNG ↓</button></div>
+      <div class="card-head"><h2>Roue a* / b*</h2>
+        <div class="outils"><button data-png="cv-roue">PNG ↓</button><button data-plein title="Quasi plein écran">⛶</button></div>
+      </div>
       <div class="zone-canvas"><canvas id="cv-roue"></canvas></div>
-      <p class="note">Chaque pixel est la conversion exacte Lab → sRGB à L* constant. Les points gardent leur propre L*.</p>
+      <p class="note">Survoler un point montre son étiquette, un clic la fixe. Glisser un point pour le déplacer, double-clic sur le fond pour en ajouter un. Chaque pixel est la conversion exacte Lab → sRGB à L* constant.</p>
     </section>
 
     <section class="card">
-      <div class="card-head"><h2>Solide des couleurs sRGB</h2><button data-png="cv-3d">PNG ↓</button></div>
+      <div class="card-head"><h2>Solide des couleurs sRGB</h2>
+        <div class="outils"><button data-png="cv-3d">PNG ↓</button><button data-plein title="Quasi plein écran">⛶</button></div>
+      </div>
       <div class="zone-canvas"><canvas id="cv-3d"></canvas></div>
       <div class="vues">
         <button id="vue-droite">Remettre droit</button>
         <button id="vue-dessus">Vue de dessus</button>
         <button id="vue-face">Vue de face</button>
       </div>
-      <p class="note">Glisser pour orbiter. Le nuage est la surface du cube sRGB projetée dans Lab.</p>
+      <p class="note">Glisser pour orbiter, cliquer sur un point pour fixer son nom. Le nuage est la surface du cube sRGB projetée dans Lab.</p>
     </section>
 
     <section class="card large">
-      <div class="card-head"><h2>Luminosité / chroma</h2><button data-png="cv-lc">PNG ↓</button></div>
+      <div class="card-head"><h2>Luminosité / chroma</h2>
+        <div class="outils"><button data-png="cv-lc">PNG ↓</button><button data-plein title="Quasi plein écran">⛶</button></div>
+      </div>
       <div class="zone-canvas"><canvas id="cv-lc"></canvas></div>
-      <p class="note">La silhouette de fond est la limite des couleurs visibles par l'œil (couleurs optimales de MacAdam, surfaces sous D65) — aucune couleur réelle ne peut exister à sa droite.</p>
+      <p class="note">Glisser un point pour changer sa luminosité et son chroma (à teinte constante). La silhouette de fond est la limite des couleurs visibles par l'œil (couleurs optimales de MacAdam, surfaces sous D65) — aucune couleur réelle ne peut exister à sa droite.</p>
     </section>
   </main>
 </div>
@@ -374,10 +454,15 @@ let points = chargerPoints();
 let lFond = 70, cMax = 120;
 const MACADAM = limiteVisible();
 
+/* Survol / épinglage des étiquettes + zones cliquables par canvas. */
+const survol = { roue: -1, lc: -1, td: -1 };
+let hitsRoue = [], hitsLc = [], hits3d = [];
+let geoRoue = null, geoLc = null;
+
 function chargerPoints() {
   try {
     const brut = JSON.parse(localStorage.getItem('rouelab.points.v1'));
-    if (Array.isArray(brut) && brut.length) return brut;
+    if (Array.isArray(brut) && brut.length) return brut.map(p => ({ fixe: false, ...p }));
   } catch (e) { /* palette par défaut */ }
   return PALETTE_DEFAUT.map(p => ({ ...p }));
 }
@@ -493,21 +578,25 @@ function dessinerRoue() {
   ctx.fillText('+b* jaune', cx, cy - R - 8);
   ctx.textBaseline = 'top'; ctx.fillText('−b* bleu', cx, cy + R + 8);
 
-  // Points
-  for (const p of points) {
+  // Points (étiquette seulement si épinglée ou survolée)
+  geoRoue = { cx, cy, ech };
+  hitsRoue = points.map(p => ({ x: cx + p.a * ech, y: cy - p.b * ech }));
+  points.forEach((p, i) => {
     const rgb = labToRgb(p.L, p.a, p.b);
-    const px = cx + p.a * ech, py = cy - p.b * ech;
-    ctx.beginPath(); ctx.arc(px, py, 9, 0, 7);
+    const { x: px, y: py } = hitsRoue[i];
+    const actif = i === survol.roue;
+    ctx.beginPath(); ctx.arc(px, py, actif ? 11 : 9, 0, 7);
     ctx.fillStyle = rgbToCss(rgb); ctx.fill();
     ctx.lineWidth = 2; ctx.strokeStyle = p.L < 50 ? '#FFFFFF' : '#000000';
     ctx.stroke();
 
+    if (!p.fixe && !actif) return;
     const norme = Math.hypot(p.a, p.b);
     const ux = norme > 1e-9 ? p.a / norme : 0.35, uy = norme > 1e-9 ? p.b / norme : 0.9;
     const lx = px + ux * 20, ly = py - uy * 20;
     const align = Math.abs(ux) < 0.4 ? 'center' : ux > 0 ? 'left' : 'right';
     pilule(ctx, lx, ly, `${p.nom} · ${rgbToHex(rgb)}`, align);
-  }
+  });
 }
 
 /* ==================== Solide 3D des couleurs sRGB ==================== */
@@ -581,43 +670,61 @@ function dessiner3d() {
   }
   ctx.globalAlpha = 1;
 
-  // Points de la palette : ligne de rappel + marqueur + nom
-  for (const p of points) {
+  // Points de la palette : ligne de rappel + marqueur + nom (si épinglé/survolé)
+  hits3d = [];
+  points.forEach((p, i) => {
     const rgb = labToRgb(p.L, p.a, p.b);
     const bas = proj(p.a, p.b, 0), haut = proj(p.a, p.b, p.L);
+    hits3d.push({ x: haut.x, y: haut.y });
     ctx.setLineDash([1, 3]); ctx.strokeStyle = G.encre2; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(bas.x, bas.y); ctx.lineTo(haut.x, haut.y); ctx.stroke();
     ctx.setLineDash([]);
     ctx.beginPath(); ctx.arc(bas.x, bas.y, 1.8, 0, 7);
     ctx.fillStyle = G.encre2; ctx.fill();
 
-    ctx.beginPath(); ctx.arc(haut.x, haut.y, 7, 0, 7);
+    const actif = i === survol.td;
+    ctx.beginPath(); ctx.arc(haut.x, haut.y, actif ? 8.5 : 7, 0, 7);
     ctx.fillStyle = rgbToCss(rgb); ctx.fill();
     ctx.lineWidth = 1.6; ctx.strokeStyle = p.L < 50 ? '#FFFFFF' : '#000000';
     ctx.stroke();
 
+    if (!p.fixe && !actif) return;
     ctx.font = '11px -apple-system, sans-serif';
     ctx.fillStyle = G.encre; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
     ctx.strokeStyle = G.fond; ctx.lineWidth = 3;
     ctx.strokeText(p.nom, haut.x, haut.y - 10);
     ctx.fillText(p.nom, haut.x, haut.y - 10);
-  }
+  });
 }
 
-/* Orbite à la souris / au doigt */
+/* Orbite à la souris / au doigt ; un clic sans mouvement épingle l'étiquette. */
 let glisse = null;
 cv3d.addEventListener('pointerdown', e => {
-  glisse = { x: e.clientX, y: e.clientY };
+  glisse = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY };
   cv3d.setPointerCapture(e.pointerId);
 });
 cv3d.addEventListener('pointermove', e => {
-  if (!glisse) return;
+  if (!glisse) {
+    const i = plusProche(hits3d, posCanvas(cv3d, e), 12);
+    if (i !== survol.td) { survol.td = i; requestAnimationFrame(dessiner3d); }
+    cv3d.style.cursor = i >= 0 ? 'pointer' : 'grab';
+    return;
+  }
   azim += (e.clientX - glisse.x) * 0.4;
   elev = Math.min(90, Math.max(-10, elev + (e.clientY - glisse.y) * 0.4));
-  glisse = { x: e.clientX, y: e.clientY };
+  glisse.x = e.clientX; glisse.y = e.clientY;
   requestAnimationFrame(dessiner3d);
 });
-cv3d.addEventListener('pointerup', () => { glisse = null; });
+cv3d.addEventListener('pointerup', e => {
+  if (glisse && Math.hypot(e.clientX - glisse.x0, e.clientY - glisse.y0) < 4) {
+    const i = plusProche(hits3d, posCanvas(cv3d, e), 12);
+    if (i >= 0) { points[i].fixe = !points[i].fixe; majTout(false); }
+  }
+  glisse = null;
+});
+cv3d.addEventListener('pointerleave', () => {
+  if (survol.td >= 0) { survol.td = -1; requestAnimationFrame(dessiner3d); }
+});
 cv3d.style.touchAction = 'none';
 cv3d.style.cursor = 'grab';
 
@@ -649,6 +756,10 @@ function dessinerLc() {
   const xMax = Math.max(cMax, Math.max(...MACADAM.C)) * 1.06;
   const X = c => m.g + c / xMax * (w - m.g - m.d);
   const Y = L => h - m.b - L / 100 * (h - m.ht - m.b);
+  geoLc = {
+    versC: x => (x - m.g) / (w - m.g - m.d) * xMax,
+    versL: y => (h - m.b - y) / (h - m.ht - m.b) * 100
+  };
 
   // Silhouette MacAdam
   ctx.beginPath();
@@ -701,9 +812,10 @@ function dessinerLc() {
   ctx.fillText('limite des couleurs visibles (MacAdam, D65)', X(xMax) - 6, Y(8));
 
   // Points avec placement d'étiquettes au score de recouvrement minimal
+  // (étiquette seulement si épinglée ou survolée)
   const dirs = [[12, -12, 'left'], [-12, -12, 'right'], [12, 16, 'left'], [-12, 16, 'right']];
   const cadres = [];
-  const marqueurs = points.map(p => ({ x: X(Math.hypot(p.a, p.b)), y: Y(p.L) }));
+  hitsLc = points.map(p => ({ x: X(Math.hypot(p.a, p.b)), y: Y(p.L) }));
 
   const aire = (r1, r2) =>
     Math.max(0, Math.min(r1[1], r2[1]) - Math.max(r1[0], r2[0])) *
@@ -711,14 +823,16 @@ function dessinerLc() {
 
   points.forEach((p, i) => {
     const rgb = labToRgb(p.L, p.a, p.b);
-    const texte = `${p.nom} · ${rgbToHex(rgb)}`;
-    const { x, y } = marqueurs[i];
+    const { x, y } = hitsLc[i];
+    const actif = i === survol.lc;
 
-    ctx.beginPath(); ctx.arc(x, y, 9, 0, 7);
+    ctx.beginPath(); ctx.arc(x, y, actif ? 11 : 9, 0, 7);
     ctx.fillStyle = rgbToCss(rgb); ctx.fill();
     ctx.lineWidth = 2; ctx.strokeStyle = p.L < 50 ? '#FFFFFF' : '#000000';
     ctx.stroke();
 
+    if (!p.fixe && !actif) return;
+    const texte = `${p.nom} · ${rgbToHex(rgb)}`;
     ctx.font = '11px ui-monospace, Menlo, monospace';
     const larg = ctx.measureText(texte).width + 14;
     const cadreDe = ([dx, dy, al]) => {
@@ -729,17 +843,118 @@ function dessinerLc() {
     for (const d of dirs) {
       const c = cadreDe(d);
       let s = cadres.reduce((t, k) => t + aire(c, k), 0);
-      marqueurs.forEach((mq, j) => {
+      hitsLc.forEach((mq, j) => {
         if (j !== i) s += 10 * aire(c, [mq.x - 11, mq.x + 11, mq.y - 11, mq.y + 11]);
       });
       if (s < scoreMin) { scoreMin = s; meilleur = d; }
     }
     const c = cadreDe(meilleur);
     cadres.push(c);
-    pilule(ctx, meilleur[2] === 'left' ? x + meilleur[0] : x + meilleur[0],
-           y + meilleur[1], texte, meilleur[2]);
+    pilule(ctx, x + meilleur[0], y + meilleur[1], texte, meilleur[2]);
   });
 }
+
+/* ==================== Interactions sur les canvas ==================== */
+
+function posCanvas(cv, e) {
+  const r = cv.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+function plusProche(hits, pos, rayon = 14) {
+  let m = -1, dm = rayon * rayon;
+  hits.forEach((h, i) => {
+    const d = (h.x - pos.x) ** 2 + (h.y - pos.y) ** 2;
+    if (d < dm) { dm = d; m = i; }
+  });
+  return m;
+}
+
+/* Roue : glisser un point (a*, b*), clic = épingler, double-clic = ajouter. */
+let dragRoue = null;
+cvRoue.style.touchAction = 'none';
+cvRoue.addEventListener('pointerdown', e => {
+  const i = plusProche(hitsRoue, posCanvas(cvRoue, e));
+  if (i < 0) return;
+  dragRoue = { i, bouge: false, x0: e.clientX, y0: e.clientY };
+  cvRoue.setPointerCapture(e.pointerId);
+});
+cvRoue.addEventListener('pointermove', e => {
+  const pos = posCanvas(cvRoue, e);
+  if (dragRoue) {
+    if (Math.hypot(e.clientX - dragRoue.x0, e.clientY - dragRoue.y0) > 4) dragRoue.bouge = true;
+    if (!dragRoue.bouge) return;
+    const p = points[dragRoue.i];
+    let a = (pos.x - geoRoue.cx) / geoRoue.ech;
+    let b = (geoRoue.cy - pos.y) / geoRoue.ech;
+    const c = Math.hypot(a, b);
+    if (c > cMax) { a *= cMax / c; b *= cMax / c; }
+    p.a = Math.round(a); p.b = Math.round(b);
+    majTout(false);
+  } else {
+    const i = plusProche(hitsRoue, pos);
+    if (i !== survol.roue) { survol.roue = i; requestAnimationFrame(dessinerRoue); }
+    cvRoue.style.cursor = i >= 0 ? 'pointer' : '';
+  }
+});
+cvRoue.addEventListener('pointerup', () => {
+  if (dragRoue && !dragRoue.bouge) {
+    const p = points[dragRoue.i];
+    p.fixe = !p.fixe;
+    majTout(false);
+  }
+  dragRoue = null;
+});
+cvRoue.addEventListener('dblclick', e => {
+  const pos = posCanvas(cvRoue, e);
+  if (plusProche(hitsRoue, pos) >= 0) return;
+  const a = Math.round((pos.x - geoRoue.cx) / geoRoue.ech);
+  const b = Math.round((geoRoue.cy - pos.y) / geoRoue.ech);
+  if (Math.hypot(a, b) > cMax) return;
+  points.push({ nom: `Point ${points.length + 1}`, L: lFond, a, b, fixe: true });
+  majTout(true);
+});
+cvRoue.addEventListener('pointerleave', () => {
+  if (survol.roue >= 0) { survol.roue = -1; requestAnimationFrame(dessinerRoue); }
+});
+
+/* Plan L/C : glisser un point change L* et C* à teinte constante, clic = épingler. */
+let dragLc = null;
+cvLc.style.touchAction = 'none';
+cvLc.addEventListener('pointerdown', e => {
+  const i = plusProche(hitsLc, posCanvas(cvLc, e));
+  if (i < 0) return;
+  dragLc = { i, bouge: false, x0: e.clientX, y0: e.clientY, ang: Math.atan2(points[i].b, points[i].a) };
+  cvLc.setPointerCapture(e.pointerId);
+});
+cvLc.addEventListener('pointermove', e => {
+  const pos = posCanvas(cvLc, e);
+  if (dragLc) {
+    if (Math.hypot(e.clientX - dragLc.x0, e.clientY - dragLc.y0) > 4) dragLc.bouge = true;
+    if (!dragLc.bouge) return;
+    const p = points[dragLc.i];
+    const C = Math.max(0, geoLc.versC(pos.x));
+    p.L = Math.round(Math.min(100, Math.max(0, geoLc.versL(pos.y))));
+    p.a = Math.round(C * Math.cos(dragLc.ang));
+    p.b = Math.round(C * Math.sin(dragLc.ang));
+    majTout(false);
+  } else {
+    const i = plusProche(hitsLc, pos);
+    if (i !== survol.lc) { survol.lc = i; requestAnimationFrame(dessinerLc); }
+    cvLc.style.cursor = i >= 0 ? 'pointer' : '';
+  }
+});
+cvLc.addEventListener('pointerup', () => {
+  if (dragLc && !dragLc.bouge) {
+    const p = points[dragLc.i];
+    p.fixe = !p.fixe;
+    majTout(false);
+  }
+  dragLc = null;
+});
+cvLc.addEventListener('pointerleave', () => {
+  if (survol.lc >= 0) { survol.lc = -1; requestAnimationFrame(dessinerLc); }
+});
 
 /* ==================== Éditeur de palette ==================== */
 
@@ -755,6 +970,7 @@ function rendreListe() {
       <div class="pt-top">
         <span class="sw" style="background:${rgbToCss(rgb)}"></span>
         <input type="text" value="" aria-label="Nom du point">
+        <button class="epingle${p.fixe ? ' actif' : ''}" title="Afficher / masquer l'étiquette" aria-label="Épingler l'étiquette">📌</button>
         <button class="suppr" title="Supprimer" aria-label="Supprimer ce point">✕</button>
       </div>
       <div class="pt-nums">
@@ -772,6 +988,9 @@ function rendreListe() {
         const v = parseFloat(nums[k].value);
         if (!Number.isNaN(v)) { p[cle] = v; majTout(false); }
       });
+    });
+    div.querySelector('.epingle').addEventListener('click', () => {
+      p.fixe = !p.fixe; majTout(false);
     });
     div.querySelector('.suppr').addEventListener('click', () => {
       points.splice(i, 1); majTout(true);
@@ -804,6 +1023,183 @@ regC.addEventListener('input', () => {
   requestAnimationFrame(() => { dessinerRoue(); dessinerLc(); });
 });
 
+/* ==================== Bibliothèque (dossiers + palettes) ==================== */
+
+let bib = chargerBib();
+
+function chargerBib() {
+  try {
+    const b = JSON.parse(localStorage.getItem('rouelab.bib.v1'));
+    if (b && Array.isArray(b.dossiers)) return b;
+  } catch (e) { /* bibliothèque vide */ }
+  return { dossiers: [] };
+}
+function sauverBib() {
+  try { localStorage.setItem('rouelab.bib.v1', JSON.stringify(bib)); } catch (e) {}
+}
+
+/* Suppression en deux clics (pas de boîte de dialogue bloquante). */
+function armerSuppr(btn, action) {
+  btn.addEventListener('click', e => {
+    e.preventDefault(); e.stopPropagation();
+    if (btn.classList.contains('confirme')) { action(); return; }
+    btn.classList.add('confirme'); btn.textContent = 'sûr ?';
+    setTimeout(() => { btn.classList.remove('confirme'); btn.textContent = '✕'; }, 2000);
+  });
+}
+
+function rendreBib() {
+  const zone = document.getElementById('bib-dossiers');
+  zone.textContent = '';
+  if (!bib.dossiers.length) {
+    const p = document.createElement('p');
+    p.className = 'bib-vide';
+    p.textContent = 'Aucune palette enregistrée pour l’instant.';
+    zone.appendChild(p);
+    return;
+  }
+  bib.dossiers.forEach((dos, di) => {
+    const det = document.createElement('details');
+    det.className = 'dossier';
+    det.open = dos.ouvert !== false;
+    const sum = document.createElement('summary');
+    const nomD = document.createElement('span');
+    nomD.className = 'nom-dossier'; nomD.textContent = `📁 ${dos.nom}`;
+    const compte = document.createElement('span');
+    compte.className = 'compte'; compte.textContent = dos.palettes.length;
+    const supD = document.createElement('button');
+    supD.className = 'suppr'; supD.textContent = '✕'; supD.title = 'Supprimer le dossier';
+    armerSuppr(supD, () => { bib.dossiers.splice(di, 1); sauverBib(); rendreBib(); });
+    sum.append(nomD, compte, supD);
+    det.appendChild(sum);
+    det.addEventListener('toggle', () => { dos.ouvert = det.open; sauverBib(); });
+
+    dos.palettes.forEach((pal, pi) => {
+      const ligne = document.createElement('div');
+      ligne.className = 'pal-ligne';
+      const ap = document.createElement('span');
+      ap.className = 'apercu';
+      pal.points.slice(0, 5).forEach(p => {
+        const sw = document.createElement('i');
+        sw.style.background = rgbToCss(labToRgb(p.L, p.a, p.b));
+        ap.appendChild(sw);
+      });
+      const nom = document.createElement('button');
+      nom.className = 'pal-nom';
+      nom.textContent = pal.nom;
+      nom.title = pal.date ? `Charger cette palette (${pal.date})` : 'Charger cette palette';
+      nom.addEventListener('click', () => {
+        points = JSON.parse(JSON.stringify(pal.points));
+        majTout(true);
+      });
+      const sup = document.createElement('button');
+      sup.className = 'suppr'; sup.textContent = '✕'; sup.title = 'Supprimer cette palette';
+      armerSuppr(sup, () => { dos.palettes.splice(pi, 1); sauverBib(); rendreBib(); });
+      ligne.append(ap, nom, sup);
+      det.appendChild(ligne);
+    });
+    zone.appendChild(det);
+  });
+}
+
+const formSave = document.getElementById('form-save');
+const selDossier = document.getElementById('save-dossier');
+const inpNouveau = document.getElementById('save-nouveau');
+
+document.getElementById('btn-save').addEventListener('click', () => {
+  const ouvert = formSave.classList.toggle('ouvert');
+  if (!ouvert) return;
+  selDossier.textContent = '';
+  bib.dossiers.forEach((d, i) => selDossier.append(new Option(`📁 ${d.nom}`, i)));
+  selDossier.append(new Option('➕ Nouveau dossier…', 'nouveau'));
+  if (!bib.dossiers.length) selDossier.value = 'nouveau';
+  majChampNouveau();
+  document.getElementById('save-nom').focus();
+});
+function majChampNouveau() { inpNouveau.hidden = selDossier.value !== 'nouveau'; }
+selDossier.addEventListener('change', majChampNouveau);
+document.getElementById('save-annuler').addEventListener('click', () => formSave.classList.remove('ouvert'));
+
+document.getElementById('save-ok').addEventListener('click', () => {
+  const nom = document.getElementById('save-nom').value.trim() || 'Sans titre';
+  let dos;
+  if (selDossier.value === 'nouveau') {
+    const nomDos = inpNouveau.value.trim() || 'Mes palettes';
+    dos = bib.dossiers.find(d => d.nom === nomDos);
+    if (!dos) { dos = { nom: nomDos, palettes: [] }; bib.dossiers.push(dos); }
+  } else {
+    dos = bib.dossiers[+selDossier.value];
+  }
+  dos.palettes.push({
+    nom,
+    date: new Date().toISOString().slice(0, 10),
+    points: JSON.parse(JSON.stringify(points))
+  });
+  sauverBib(); rendreBib();
+  formSave.classList.remove('ouvert');
+  document.getElementById('save-nom').value = '';
+  inpNouveau.value = '';
+});
+
+const bibNote = document.getElementById('bib-note');
+function messageBib(txt) {
+  const initial = 'Enregistré dans ce navigateur. Exportez le fichier JSON pour sauvegarder ou partager.';
+  bibNote.textContent = txt;
+  setTimeout(() => { bibNote.textContent = initial; }, 4000);
+}
+
+document.getElementById('btn-export').addEventListener('click', () => {
+  const blob = new Blob(
+    [JSON.stringify({ version: 1, dossiers: bib.dossiers }, null, 2)],
+    { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'roue-lab-bibliotheque.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+const fichierImport = document.getElementById('fichier-import');
+document.getElementById('btn-import').addEventListener('click', () => fichierImport.click());
+fichierImport.addEventListener('change', () => {
+  const f = fichierImport.files[0];
+  if (!f) return;
+  f.text().then(t => {
+    const d = JSON.parse(t);
+    const dossiers = Array.isArray(d) ? d : d.dossiers;
+    if (!Array.isArray(dossiers)) throw new Error('format');
+    let n = 0;
+    for (const dos of dossiers) {
+      if (!dos || typeof dos.nom !== 'string' || !Array.isArray(dos.palettes)) continue;
+      const cible = bib.dossiers.find(x => x.nom === dos.nom);
+      if (cible) cible.palettes.push(...dos.palettes);
+      else bib.dossiers.push(dos);
+      n += dos.palettes.length;
+    }
+    sauverBib(); rendreBib();
+    messageBib(`Import réussi : ${n} palette${n > 1 ? 's' : ''}.`);
+  }).catch(() => messageBib('Fichier illisible — attendu : un export JSON de cette page.'));
+  fichierImport.value = '';
+});
+
+/* ==================== Quasi plein écran ==================== */
+
+document.querySelectorAll('[data-plein]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const carte = btn.closest('.card');
+    const actif = carte.classList.toggle('plein');
+    document.body.classList.toggle('a-plein', actif);
+    btn.textContent = actif ? '✕ Fermer' : '⛶';
+    btn.title = actif ? 'Quitter le plein écran (Échap)' : 'Quasi plein écran';
+    requestAnimationFrame(redessiner);
+  });
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const carte = document.querySelector('.card.plein');
+  if (carte) carte.querySelector('[data-plein]').click();
+});
+
 /* ==================== Export PNG ==================== */
 
 document.querySelectorAll('[data-png]').forEach(btn => {
@@ -824,21 +1220,27 @@ function majTout(refaireListe) {
   sauverPoints();
   if (refaireListe) rendreListe();
   else {
-    // Rafraîchit seulement pastilles et hex sans reconstruire les champs
+    // Rafraîchit pastilles, hex, épingles et champs (hors champ en cours d'édition)
     listeEl.querySelectorAll('.pt').forEach((el, i) => {
       const p = points[i];
       if (!p) return;
       const rgb = labToRgb(p.L, p.a, p.b);
       el.querySelector('.sw').style.background = rgbToCss(rgb);
       el.querySelector('code').textContent = rgbToHex(rgb);
+      el.querySelector('.epingle').classList.toggle('actif', !!p.fixe);
+      el.querySelectorAll('input[type="number"]').forEach((inp, k) => {
+        if (inp !== document.activeElement) inp.value = p[['L', 'a', 'b'][k]];
+      });
     });
   }
   requestAnimationFrame(redessiner);
 }
 
-new ResizeObserver(() => requestAnimationFrame(redessiner)).observe(document.querySelector('main'));
+const observateur = new ResizeObserver(() => requestAnimationFrame(redessiner));
+document.querySelectorAll('.zone-canvas').forEach(z => observateur.observe(z));
 
 rendreListe();
+rendreBib();
 redessiner();
 </script>
 
