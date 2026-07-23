@@ -336,8 +336,11 @@
         <div class="pts" id="liste-points"></div>
         <div class="actions">
           <button id="btn-ajouter">+ Ajouter un point</button>
-          <button id="btn-reset">Réinitialiser</button>
+          <button id="btn-excel" title="Importer une palette depuis un fichier Excel (colonnes L, a, b)">Importer Excel</button>
+          <button id="btn-reset">Vider</button>
+          <input type="file" id="fichier-excel" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
         </div>
+        <p class="note" id="excel-msg" hidden></p>
       </div>
     </details>
     <details class="bloc" id="bloc-bib">
@@ -555,18 +558,6 @@ function limiteVisible(nBandes = 81) {
 
 /* ======================= État de l'application ======================= */
 
-const PALETTE_DEFAUT = [
-  { nom: 'Rouge vif',    L: 55, a:  70, b:  50 },
-  { nom: 'Orange',       L: 70, a:  40, b:  70 },
-  { nom: 'Jaune',        L: 90, a: -10, b:  85 },
-  { nom: 'Vert feuille', L: 60, a: -55, b:  45 },
-  { nom: 'Cyan',         L: 75, a: -35, b: -25 },
-  { nom: 'Bleu roi',     L: 45, a:  15, b: -60 },
-  { nom: 'Violet',       L: 40, a:  55, b: -50 },
-  { nom: 'Magenta',      L: 55, a:  75, b: -20 },
-  { nom: 'Gris neutre',  L: 60, a:   0, b:   0 }
-];
-
 let points = chargerPoints();
 let lFond = 70, cMax = 120;
 const MACADAM = limiteVisible();
@@ -618,8 +609,8 @@ function chargerPoints() {
   try {
     const brut = JSON.parse(localStorage.getItem('rouelab.points.v1'));
     if (Array.isArray(brut) && brut.length) return normaliserPoints(brut);
-  } catch (e) { /* palette par défaut */ }
-  return PALETTE_DEFAUT.map(p => ({ ...p }));
+  } catch (e) { /* palette vide par défaut */ }
+  return [];   // on démarre avec une palette vide
 }
 function sauverPoints() {
   try { localStorage.setItem('rouelab.points.v1', JSON.stringify(points)); } catch (e) {}
@@ -1160,8 +1151,92 @@ document.getElementById('btn-ajouter').addEventListener('click', () => {
   majTout(true);
 });
 document.getElementById('btn-reset').addEventListener('click', () => {
-  points = PALETTE_DEFAUT.map(p => ({ ...p }));
+  points = [];
   majTout(true);
+});
+
+/* ---------- Import d'une palette depuis un fichier Excel ----------
+   Colonnes attendues : L, a, b (en-têtes, insensible à la casse) + une
+   colonne de nom (« Nom… » ou « Nuance »). Les autres colonnes (C, h…)
+   sont ignorées. La bibliothèque SheetJS est chargée à la demande, une
+   seule fois, épinglée avec empreinte d'intégrité (SRI). */
+const excelMsg = document.getElementById('excel-msg');
+function messageExcel(txt) {
+  excelMsg.textContent = txt;
+  excelMsg.hidden = !txt;
+}
+
+let chargementXLSX = null;
+function chargerXLSX() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  if (chargementXLSX) return chargementXLSX;
+  chargementXLSX = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.integrity = 'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw';
+    s.crossOrigin = 'anonymous';
+    s.onload = () => resolve(window.XLSX);
+    s.onerror = () => reject(new Error('chargement du lecteur Excel impossible'));
+    document.head.appendChild(s);
+  });
+  return chargementXLSX;
+}
+
+/* Repère la ligne d'en-tête et les colonnes L/a/b + nom, puis extrait les points. */
+function pointsDepuisFeuille(lignes) {
+  const norm = v => String(v ?? '').trim().toLowerCase();
+  let entete = -1, colL = -1, colA = -1, colB = -1, colNom = -1;
+  for (let i = 0; i < Math.min(lignes.length, 20); i++) {
+    const cellules = lignes[i].map(norm);
+    const l = cellules.indexOf('l'), a = cellules.indexOf('a'), b = cellules.indexOf('b');
+    if (l >= 0 && a >= 0 && b >= 0) {
+      entete = i; colL = l; colA = a; colB = b;
+      colNom = cellules.findIndex(c => c.startsWith('nom'));
+      if (colNom < 0) colNom = cellules.findIndex(c => c.startsWith('nuance'));
+      break;
+    }
+  }
+  if (entete < 0) throw new Error('en-têtes L, a, b introuvables');
+
+  const nombre = v => {
+    if (typeof v === 'number') return v;
+    const n = Number(String(v ?? '').replace(',', '.').trim());  // virgule décimale FR
+    return Number.isFinite(n) ? n : NaN;
+  };
+  const pts = [];
+  for (let i = entete + 1; i < lignes.length; i++) {
+    const r = lignes[i];
+    if (!r || !r.length) continue;
+    const L = nombre(r[colL]), a = nombre(r[colA]), b = nombre(r[colB]);
+    if ([L, a, b].some(Number.isNaN)) continue;   // ligne vide ou non numérique
+    const nom = colNom >= 0 ? String(r[colNom] ?? '').trim() : '';
+    pts.push(normaliserPoint({ nom: nom || `Point ${pts.length + 1}`, L, a, b }));
+  }
+  return pts;
+}
+
+const fichierExcel = document.getElementById('fichier-excel');
+document.getElementById('btn-excel').addEventListener('click', () => fichierExcel.click());
+fichierExcel.addEventListener('change', async () => {
+  const f = fichierExcel.files[0];
+  fichierExcel.value = '';
+  if (!f) return;
+  messageExcel('Lecture du fichier…');
+  try {
+    const XLSX = await chargerXLSX();
+    const buf = await f.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const feuille = wb.Sheets[wb.SheetNames[0]];
+    const lignes = XLSX.utils.sheet_to_json(feuille, { header: 1, blankrows: false });
+    const nouveaux = pointsDepuisFeuille(lignes);
+    if (!nouveaux.length) { messageExcel('Aucune couleur valide trouvée dans le fichier.'); return; }
+    points = nouveaux;
+    majTout(true);
+    messageExcel(`${nouveaux.length} couleur${nouveaux.length > 1 ? 's' : ''} importée${nouveaux.length > 1 ? 's' : ''}.`);
+    setTimeout(() => messageExcel(''), 4000);
+  } catch (e) {
+    messageExcel(`Import impossible : ${e.message}. Attendu : des colonnes L, a, b.`);
+  }
 });
 
 /* ==================== Réglages ==================== */
