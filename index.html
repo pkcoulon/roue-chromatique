@@ -77,12 +77,36 @@
 
   .app {
     display: grid;
-    grid-template-columns: 320px 1fr;
+    grid-template-columns: var(--aside-w, 320px) 1fr;
     gap: 20px;
     padding: 20px 28px 40px;
     max-width: 1480px;
   }
-  @media (max-width: 980px) { .app { grid-template-columns: 1fr; } }
+  @media (max-width: 980px) {
+    .app { grid-template-columns: 1fr; }
+    #redim { display: none; }
+  }
+
+  /* Poignée de redimensionnement de la colonne de gauche */
+  #redim {
+    position: absolute;
+    top: 0; bottom: 0;
+    right: -13px;              /* dans la gouttière entre les deux colonnes */
+    width: 12px;
+    cursor: col-resize;
+    z-index: 10;
+    touch-action: none;
+  }
+  #redim::after {
+    content: '';
+    position: absolute;
+    top: 0; bottom: 0; left: 5px;
+    width: 2px; border-radius: 2px;
+    background: var(--hairline);
+    transition: background 0.15s;
+  }
+  #redim:hover::after, body.redim-actif #redim::after { background: var(--accent); }
+  body.redim-actif { cursor: col-resize; user-select: none; }
 
   /* ---------- Colonne palette : panneaux accordéon ---------- */
   aside details.bloc {
@@ -126,7 +150,7 @@
     }
     aside details[open]::details-content { block-size: auto; }
   }
-  aside { display: flex; flex-direction: column; gap: 16px; }
+  aside { display: flex; flex-direction: column; gap: 16px; position: relative; }
   aside h2, main h2 {
     margin: 0 0 10px;
     font-size: 11px; font-weight: 600;
@@ -402,6 +426,7 @@
         </div>
       </div>
     </details>
+    <div id="redim" title="Glisser pour redimensionner" role="separator" aria-orientation="vertical"></div>
   </aside>
 
   <main>
@@ -1607,6 +1632,38 @@ function majTout(refaireListe) {
 
 const observateur = new ResizeObserver(() => requestAnimationFrame(redessiner));
 document.querySelectorAll('.zone-canvas').forEach(z => observateur.observe(z));
+
+/* ==================== Redimensionnement de la colonne de gauche ==================== */
+(() => {
+  const app = document.querySelector('.app');
+  const aside = document.querySelector('aside');
+  const poignee = document.getElementById('redim');
+  const MIN = 240, MAX = 640;
+  // Largeur mémorisée (simple préférence d'affichage, non sensible).
+  try {
+    const w = parseInt(localStorage.getItem('rouelab.asideW'), 10);
+    if (Number.isFinite(w)) app.style.setProperty('--aside-w', Math.min(MAX, Math.max(MIN, w)) + 'px');
+  } catch (e) { /* pas de préférence */ }
+
+  let redim = null;
+  poignee.addEventListener('pointerdown', e => {
+    redim = { x: e.clientX, w: aside.offsetWidth };
+    poignee.setPointerCapture(e.pointerId);
+    document.body.classList.add('redim-actif');
+    e.preventDefault();
+  });
+  poignee.addEventListener('pointermove', e => {
+    if (!redim) return;
+    const w = Math.min(MAX, Math.max(MIN, redim.w + (e.clientX - redim.x)));
+    app.style.setProperty('--aside-w', w + 'px');
+  });
+  poignee.addEventListener('pointerup', () => {
+    if (!redim) return;
+    redim = null;
+    document.body.classList.remove('redim-actif');
+    try { localStorage.setItem('rouelab.asideW', aside.offsetWidth); } catch (e) {}
+  });
+})();
 
 rendreListe();
 rendreBib();
