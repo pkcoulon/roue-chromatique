@@ -52,6 +52,7 @@
   }
 
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body {
     margin: 0;
     background: var(--bg);
@@ -277,7 +278,7 @@
     margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hairline);
   }
   #form-save.ouvert { display: flex; }
-  #form-save select {
+  select {
     width: 100%; background: var(--input-bg); color: var(--ink);
     border: 1px solid var(--hairline); border-radius: 5px;
     padding: 5px 6px; font-size: 13px;
@@ -289,6 +290,46 @@
   .reglage label { font-size: 13px; }
   .reglage output { font-size: 12px; color: var(--muted); }
   input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+  /* ---------- Sélecteur d'affichage + analyse spectrale ---------- */
+  .choix-vue {
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    padding: 12px 16px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .choix-vue label {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .spc-sous-titre {
+    margin: 12px 0 6px;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .spc-ligne-colorant {
+    display: grid; grid-template-columns: 1fr auto;
+    gap: 6px; align-items: center;
+  }
+  .spc-radio { display: flex; gap: 14px; margin: 2px 0 8px; flex-wrap: wrap; }
+  .spc-radio label { display: flex; align-items: center; gap: 5px; font-size: 13px; }
+  .spc-radio input { accent-color: var(--accent); }
+  .spc-grille { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .spc-grille label {
+    display: flex; flex-direction: column; gap: 3px;
+    font-size: 11px; color: var(--muted);
+  }
+  .spc-etat-ligne {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; padding: 4px 0;
+    border-top: 1px solid var(--hairline);
+  }
+  .spc-etat-ligne .texte { flex: 1; }
+  #cv-spectre { aspect-ratio: 16 / 7; }
+  #spc-resultats { display: flex; flex-direction: column; gap: 2px; }
 
   /* ---------- Cartes graphiques ---------- */
   main {
@@ -354,7 +395,14 @@
 
 <div class="app">
   <aside>
-    <details class="bloc">
+    <div class="choix-vue">
+      <label for="sel-vue">Affichage</label>
+      <select id="sel-vue">
+        <option value="roue">Roue chromatique</option>
+        <option value="spectre">Analyse spectrale</option>
+      </select>
+    </div>
+    <details class="bloc" data-vue="roue">
       <summary><h2>Palette</h2><span class="badge" id="badge-palette"></span></summary>
       <div class="bloc-corps">
         <div class="pts" id="liste-points"></div>
@@ -367,7 +415,7 @@
         <p class="note" id="excel-msg" hidden></p>
       </div>
     </details>
-    <details class="bloc" id="bloc-bib">
+    <details class="bloc" id="bloc-bib" data-vue="roue">
       <summary><h2>Bibliothèque</h2><span class="badge" id="badge-bib"></span></summary>
       <div class="bloc-corps">
       <div id="bib-dossiers"></div>
@@ -389,7 +437,7 @@
       <p class="note" id="bib-note">Enregistré sur votre compte. Exportez le fichier JSON pour partager ou garder une copie.</p>
       </div>
     </details>
-    <details class="bloc">
+    <details class="bloc" data-vue="roue">
       <summary><h2>Réglages</h2></summary>
       <div class="bloc-corps">
       <div class="reglage">
@@ -406,6 +454,38 @@
         </div>
         <input type="range" id="reg-cmax" min="60" max="160" step="5" value="120">
       </div>
+      </div>
+    </details>
+    <details class="bloc" id="bloc-spectre" data-vue="spectre" open hidden>
+      <summary><h2>Analyse spectrale</h2><span class="badge" id="badge-spectre"></span></summary>
+      <div class="bloc-corps">
+        <p class="spc-sous-titre" style="margin-top:8px">Colorant</p>
+        <div class="spc-ligne-colorant">
+          <select id="spc-colorant" aria-label="Colorant analysé"></select>
+          <button id="spc-suppr" class="suppr" title="Supprimer ce colorant" aria-label="Supprimer ce colorant">✕</button>
+        </div>
+        <input type="text" id="spc-nouveau" placeholder="Nom du nouveau colorant" hidden style="margin-top:6px">
+        <div class="actions" id="spc-actions-nouveau" hidden style="margin-top:8px">
+          <button id="spc-creer">Créer le colorant</button>
+        </div>
+        <div id="spc-mesure" hidden>
+          <p class="spc-sous-titre">Mesure à importer</p>
+          <div class="spc-radio" role="radiogroup" aria-label="Type de mesure">
+            <label><input type="radio" name="spc-type" value="echantillon" checked> Échantillon</label>
+            <label><input type="radio" name="spc-type" value="reference"> Référence</label>
+          </div>
+          <div class="spc-grille">
+            <label>Masse (g) <input type="number" id="spc-masse" min="0" step="any"></label>
+            <label>Volume (L) <input type="number" id="spc-volume" min="0" step="any"></label>
+          </div>
+          <p class="note" id="spc-conc">C = masse / volume</p>
+          <div class="actions">
+            <button id="spc-importer" title="Fichier Excel : une colonne λ (nm), une colonne A">Importer le spectre (Excel)</button>
+            <input type="file" id="spc-fichier" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+          </div>
+          <p class="note" id="spc-msg" hidden></p>
+          <div id="spc-etat" style="margin-top:8px"></div>
+        </div>
       </div>
     </details>
     <details class="bloc" id="bloc-compte" hidden>
@@ -430,7 +510,7 @@
   </aside>
 
   <main>
-    <section class="card">
+    <section class="card" data-vue="roue">
       <div class="card-head"><h2>Roue a* / b*</h2>
         <div class="outils"><button data-png="cv-roue">PNG ↓</button><button data-plein title="Quasi plein écran">⛶</button></div>
       </div>
@@ -438,7 +518,7 @@
       <p class="note">Survoler un point montre son étiquette, un clic la fixe. Glisser un point pour le déplacer, double-clic sur le fond pour en ajouter un. Chaque pixel est la conversion exacte Lab → sRGB à L* constant.</p>
     </section>
 
-    <section class="card">
+    <section class="card" data-vue="roue">
       <div class="card-head"><h2>Solide des couleurs sRGB</h2>
         <div class="outils"><button data-png="cv-3d">PNG ↓</button><button data-plein title="Quasi plein écran">⛶</button></div>
       </div>
@@ -451,12 +531,21 @@
       <p class="note">Glisser pour orbiter, cliquer sur un point pour fixer son nom. Le nuage est la surface du cube sRGB projetée dans Lab.</p>
     </section>
 
-    <section class="card large">
+    <section class="card large" data-vue="roue">
       <div class="card-head"><h2>Luminosité / chroma</h2>
         <div class="outils"><button data-png="cv-lc">PNG ↓</button><button data-plein title="Quasi plein écran">⛶</button></div>
       </div>
       <div class="zone-canvas"><canvas id="cv-lc"></canvas></div>
       <p class="note">Glisser un point pour changer sa luminosité et son chroma (à teinte constante). La silhouette de fond est la limite des couleurs visibles par l'œil (couleurs optimales de MacAdam, surfaces sous D65) — aucune couleur réelle ne peut exister à sa droite.</p>
+    </section>
+
+    <section class="card large" data-vue="spectre" hidden>
+      <div class="card-head"><h2>Spectre d'absorption</h2>
+        <div class="outils"><button data-png="cv-spectre">PNG ↓</button><button data-plein title="Quasi plein écran">⛶</button></div>
+      </div>
+      <div class="zone-canvas"><canvas id="cv-spectre"></canvas></div>
+      <div class="note" id="spc-resultats"></div>
+      <p class="note">A max est le sommet de la courbe ; la largeur de bande est mesurée à mi-hauteur (A max / 2) ; la force colorante compare l'échantillon à la référence : F = A max échantillon / A max référence × 100. La référence est tracée en retrait de l'échantillon.</p>
     </section>
   </main>
 </div>
@@ -710,6 +799,7 @@ function disqueOffscreen(res) {
 }
 
 function dessinerRoue() {
+  if (!cvRoue.clientWidth) return;             // vue masquée
   const { ctx, w, h } = prepCanvas(cvRoue);
   ctx.fillStyle = G.fond; ctx.fillRect(0, 0, w, h);
   const cx = w / 2, cy = h / 2;
@@ -806,6 +896,7 @@ function projecteur(w, h) {
 }
 
 function dessiner3d() {
+  if (!cv3d.clientWidth) return;               // vue masquée
   const { ctx, w, h } = prepCanvas(cv3d);
   ctx.fillStyle = G.fond; ctx.fillRect(0, 0, w, h);
   const proj = projecteur(w, h);
@@ -920,6 +1011,7 @@ document.getElementById('vue-face').onclick = () => allerVue(0, -90);
 const cvLc = document.getElementById('cv-lc');
 
 function dessinerLc() {
+  if (!cvLc.clientWidth) return;               // vue masquée
   const { ctx, w, h } = prepCanvas(cvLc);
   ctx.fillStyle = G.fond; ctx.fillRect(0, 0, w, h);
 
@@ -1606,9 +1698,448 @@ document.querySelectorAll('[data-png]').forEach(btn => {
   });
 });
 
+/* ==================== Analyse spectrale ==================== */
+
+/* Un colorant porte deux spectres d'absorbance — l'échantillon mesuré et la
+   référence — chacun accompagné de sa concentration C = masse / volume.
+   Le tout vit dans le navigateur (rouelab.spectres.v1) et passe par le même
+   assainissement que le reste (source non fiable au rechargement). */
+
+function normaliserMesure(m) {
+  const o = (m && typeof m === 'object') ? m : {};
+  const masse = Number(o.masse), volume = Number(o.volume);
+  return {
+    masse: Number.isFinite(masse) && masse > 0 ? masse : null,
+    volume: Number.isFinite(volume) && volume > 0 ? volume : null,
+    pts: (Array.isArray(o.pts) ? o.pts : [])
+      .map(p => ({ l: Number(p && p.l), A: Number(p && p.A) }))
+      .filter(p => Number.isFinite(p.l) && p.l > 0 && p.l < 1e5 &&
+                   Number.isFinite(p.A) && p.A > -10 && p.A < 100)
+      .sort((u, v) => u.l - v.l)
+  };
+}
+function normaliserColorants(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.map(c => {
+    const o = (c && typeof c === 'object') ? c : {};
+    return {
+      nom: typeof o.nom === 'string' ? o.nom : String(o.nom ?? 'Colorant'),
+      echantillon: normaliserMesure(o.echantillon),
+      reference: normaliserMesure(o.reference)
+    };
+  });
+}
+
+function chargerSpectres() {
+  try {
+    const brut = JSON.parse(localStorage.getItem('rouelab.spectres.v1'));
+    const colorants = normaliserColorants(brut && brut.colorants);
+    const actif = Math.floor(nombreBorne(brut && brut.actif, 0, Math.max(0, colorants.length - 1), 0));
+    return { colorants, actif };
+  } catch (e) { return { colorants: [], actif: 0 }; }
+}
+const spectres = chargerSpectres();
+function sauverSpectres() {
+  try { localStorage.setItem('rouelab.spectres.v1', JSON.stringify(spectres)); } catch (e) {}
+}
+function colorantActif() { return spectres.colorants[spectres.actif] || null; }
+function concentration(mes) {
+  return mes && mes.masse > 0 && mes.volume > 0 ? mes.masse / mes.volume : null;
+}
+
+const fmtSpc = {
+  A: v => v.toFixed(3),
+  nm: v => String(Math.round(v * 10) / 10),
+  conc: v => `${Number(v.toPrecision(4))} g/L`
+};
+
+/* A max, λ au maximum, et largeur de bande à mi-hauteur (A max / 2), par
+   interpolation linéaire entre les points qui encadrent chaque flanc. */
+function analyserCourbe(pts) {
+  if (!pts || pts.length < 3) return null;
+  let iMax = 0;
+  for (let i = 1; i < pts.length; i++) if (pts[i].A > pts[iMax].A) iMax = i;
+  const Amax = pts[iMax].A;
+  if (!(Amax > 0)) return null;
+  const demi = Amax / 2;
+  const croise = (p, q) => p.l + (demi - p.A) / (q.A - p.A) * (q.l - p.l);
+  let gauche = null, droite = null;
+  for (let i = iMax; i > 0; i--) {
+    if (pts[i - 1].A <= demi) { gauche = croise(pts[i - 1], pts[i]); break; }
+  }
+  for (let i = iMax; i < pts.length - 1; i++) {
+    if (pts[i + 1].A <= demi) { droite = croise(pts[i], pts[i + 1]); break; }
+  }
+  return {
+    Amax, lMax: pts[iMax].l, demi, gauche, droite,
+    largeur: gauche !== null && droite !== null ? droite - gauche : null
+  };
+}
+
+/* Force colorante F = A max échantillon / A max référence × 100. */
+function forceColorante() {
+  const col = colorantActif();
+  if (!col) return null;
+  const aE = analyserCourbe(col.echantillon.pts);
+  const aR = analyserCourbe(col.reference.pts);
+  return aE && aR ? aE.Amax / aR.Amax * 100 : null;
+}
+
+/* Repère les colonnes λ (nm) et A (absorbance) — en-têtes « lambda », « λ »,
+   « nm », « longueur d'onde » / « A », « abs » — sinon colonnes 1 et 2. */
+function spectreDepuisFeuille(lignes) {
+  const norm = v => String(v ?? '').trim().toLowerCase();
+  const nombre = v => {
+    if (typeof v === 'number') return v;
+    const n = Number(String(v ?? '').replace(',', '.').trim());  // virgule décimale FR
+    return Number.isFinite(n) ? n : NaN;
+  };
+  let debut = 0, colL = 0, colA = 1;
+  for (let i = 0; i < Math.min(lignes.length, 20); i++) {
+    const c = lignes[i].map(norm);
+    const iL = c.findIndex(v => /lambda|λ|onde|nm|longueur/.test(v));
+    const iA = c.findIndex((v, j) => j !== iL && /^a([\s(.]|$)|abs/.test(v));
+    if (iL >= 0 && iA >= 0) { debut = i + 1; colL = iL; colA = iA; break; }
+  }
+  const pts = [];
+  for (let i = debut; i < lignes.length; i++) {
+    const r = lignes[i];
+    if (!r || !r.length) continue;
+    const l = nombre(r[colL]), A = nombre(r[colA]);
+    if (!Number.isFinite(l) || !Number.isFinite(A)) continue;
+    if (l <= 0 || l >= 1e5 || A <= -10 || A >= 100) continue;
+    pts.push({ l, A });
+  }
+  pts.sort((u, v) => u.l - v.l);
+  if (pts.length < 3) throw new Error('au moins 3 points (λ, A) requis');
+  return pts;
+}
+
+/* ---------- Tracé du spectre ---------- */
+
+const cvSpc = document.getElementById('cv-spectre');
+const COUL_ECH = '#8B94E8', COUL_REF = 'rgba(154,154,162,0.55)';
+
+function dessinerSpectre() {
+  if (!cvSpc.clientWidth) return;              // vue masquée
+  const { ctx, w, h } = prepCanvas(cvSpc);
+  ctx.fillStyle = G.fond; ctx.fillRect(0, 0, w, h);
+
+  const col = colorantActif();
+  const ech = col && col.echantillon.pts.length >= 3 ? col.echantillon : null;
+  const ref = col && col.reference.pts.length >= 3 ? col.reference : null;
+  if (!ech && !ref) {
+    ctx.fillStyle = G.encre2;
+    ctx.font = '13px -apple-system, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(col
+      ? 'Importez un spectre Excel (colonne λ en nm, colonne A) depuis le panneau de gauche.'
+      : 'Créez un colorant dans le panneau « Analyse spectrale » à gauche.', w / 2, h / 2);
+    return;
+  }
+
+  let lMin = Infinity, lMax = -Infinity, aHaut = -Infinity, aBas = 0;
+  for (const mes of [ech, ref]) {
+    if (!mes) continue;
+    for (const p of mes.pts) {
+      if (p.l < lMin) lMin = p.l;
+      if (p.l > lMax) lMax = p.l;
+      if (p.A > aHaut) aHaut = p.A;
+      if (p.A < aBas) aBas = p.A;
+    }
+  }
+  if (lMax - lMin < 1) { lMin -= 1; lMax += 1; }
+  const aTop = aHaut + Math.max(aHaut - aBas, 1e-3) * 0.15;
+
+  const mg = { g: 56, d: 18, ht: 16, b: 44 };
+  const X = l => mg.g + (l - lMin) / (lMax - lMin) * (w - mg.g - mg.d);
+  const Y = A => h - mg.b - (A - aBas) / (aTop - aBas) * (h - mg.ht - mg.b);
+
+  const pasJoli = e => {
+    const brut = e / 6, p10 = 10 ** Math.floor(Math.log10(brut)), r = brut / p10;
+    return (r < 1.5 ? 1 : r < 3.5 ? 2 : r < 7.5 ? 5 : 10) * p10;
+  };
+
+  // Grille + graduations
+  ctx.font = '10px ui-monospace, Menlo, monospace';
+  ctx.strokeStyle = '#22222A'; ctx.fillStyle = G.encre2; ctx.lineWidth = 1;
+  const pasL = pasJoli(lMax - lMin);
+  for (let v = Math.ceil(lMin / pasL) * pasL; v <= lMax + pasL / 1e6; v += pasL) {
+    ctx.setLineDash([2, 4]);
+    ctx.beginPath(); ctx.moveTo(X(v), Y(aBas)); ctx.lineTo(X(v), Y(aTop)); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(String(Math.round(v)), X(v), h - mg.b + 6);
+  }
+  const pasA = pasJoli(aTop - aBas);
+  for (let v = Math.ceil(aBas / pasA) * pasA; v <= aTop + pasA / 1e6; v += pasA) {
+    ctx.setLineDash([2, 4]);
+    ctx.beginPath(); ctx.moveTo(X(lMin), Y(v)); ctx.lineTo(X(lMax), Y(v)); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(Number(v.toFixed(3))), mg.g - 8, Y(v));
+  }
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText('λ — longueur d’onde (nm)', (mg.g + w - mg.d) / 2, h - 6);
+  ctx.save();
+  ctx.translate(14, (Y(aBas) + Y(aTop)) / 2); ctx.rotate(-Math.PI / 2);
+  ctx.fillText('A — absorbance', 0, 0);
+  ctx.restore();
+
+  // Courbes : la référence d'abord, en retrait ; l'échantillon par-dessus
+  const tracer = (mes, couleur, ep) => {
+    ctx.beginPath();
+    mes.pts.forEach((p, i) => i ? ctx.lineTo(X(p.l), Y(p.A)) : ctx.moveTo(X(p.l), Y(p.A)));
+    ctx.strokeStyle = couleur; ctx.lineWidth = ep; ctx.lineJoin = 'round';
+    ctx.stroke();
+  };
+  if (ref) tracer(ref, COUL_REF, 1.4);
+  if (ech) tracer(ech, COUL_ECH, 2.2);
+
+  // A max + largeur à mi-hauteur sur la courbe principale (échantillon,
+  // sinon référence seule)
+  const anaEch = ech ? analyserCourbe(ech.pts) : null;
+  const anaRef = ref ? analyserCourbe(ref.pts) : null;
+  const ana = anaEch || anaRef;
+  const coulAna = anaEch ? COUL_ECH : G.encre2;
+  if (ana) {
+    if (ana.largeur !== null) {
+      const yD = Y(ana.demi);
+      ctx.strokeStyle = coulAna; ctx.lineWidth = 1.2;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(X(ana.gauche), yD); ctx.lineTo(X(ana.droite), yD); ctx.stroke();
+      ctx.setLineDash([]);
+      for (const bord of [ana.gauche, ana.droite]) {
+        ctx.beginPath(); ctx.moveTo(X(bord), yD - 5); ctx.lineTo(X(bord), yD + 5); ctx.stroke();
+      }
+      pilule(ctx, (X(ana.gauche) + X(ana.droite)) / 2, yD + 16,
+             `largeur à A/2 : ${fmtSpc.nm(ana.largeur)} nm`, 'center');
+    }
+    ctx.beginPath(); ctx.arc(X(ana.lMax), Y(ana.Amax), 4.5, 0, 7);
+    ctx.fillStyle = coulAna; ctx.fill();
+    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 1.5; ctx.stroke();
+    pilule(ctx, X(ana.lMax), Math.max(mg.ht + 10, Y(ana.Amax) - 16),
+           `A max ${fmtSpc.A(ana.Amax)} · ${fmtSpc.nm(ana.lMax)} nm`, 'center');
+  }
+
+  // Légende + force colorante (le PNG exporté reste autoporteur)
+  const lignes = [];
+  if (ech) lignes.push([COUL_ECH, 2.2,
+    `Échantillon${anaEch ? ` — A max ${fmtSpc.A(anaEch.Amax)} à ${fmtSpc.nm(anaEch.lMax)} nm` : ''}`]);
+  if (ref) lignes.push([COUL_REF, 1.4,
+    `Référence${anaRef ? ` — A max ${fmtSpc.A(anaRef.Amax)} à ${fmtSpc.nm(anaRef.lMax)} nm` : ''}`]);
+  if (anaEch && anaRef) {
+    lignes.push([null, 0, `Force colorante F = ${(anaEch.Amax / anaRef.Amax * 100).toFixed(1)} %`]);
+  }
+  ctx.font = '11px ui-monospace, Menlo, monospace';
+  lignes.forEach(([coul, ep, txt], i) => {
+    const y0 = mg.ht + 14 + i * 16, x0 = mg.g + 10;
+    if (coul) {
+      ctx.strokeStyle = coul; ctx.lineWidth = ep;
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0 + 18, y0); ctx.stroke();
+    }
+    ctx.fillStyle = G.encre;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(txt, x0 + (coul ? 24 : 0), y0);
+  });
+}
+
+/* ---------- Résultats sous le graphique ---------- */
+
+function rendreResultatsSpectre() {
+  const zone = document.getElementById('spc-resultats');
+  zone.textContent = '';
+  const ajouter = txt => {
+    const d = document.createElement('div');
+    d.textContent = txt;
+    zone.appendChild(d);
+  };
+  const col = colorantActif();
+  if (!col) return;
+  const decrire = (etiquette, mes) => {
+    if (!mes.pts.length) { ajouter(`${etiquette} : aucun spectre importé.`); return; }
+    const ana = analyserCourbe(mes.pts);
+    const c = concentration(mes);
+    let txt = `${etiquette} : ${mes.pts.length} points`;
+    if (ana) {
+      txt += ` · A max = ${fmtSpc.A(ana.Amax)} à λ = ${fmtSpc.nm(ana.lMax)} nm`;
+      txt += ana.largeur !== null
+        ? ` · largeur à A/2 = ${fmtSpc.nm(ana.largeur)} nm`
+        : ' · largeur à A/2 non mesurable (la courbe ne redescend pas sous A max / 2)';
+    }
+    if (c !== null) txt += ` · C = ${fmtSpc.conc(c)}`;
+    ajouter(txt);
+  };
+  decrire(`Échantillon — ${col.nom}`, col.echantillon);
+  decrire('Référence', col.reference);
+  const F = forceColorante();
+  ajouter(F !== null
+    ? `Force colorante F = A max échantillon / A max référence × 100 = ${F.toFixed(1)} %`
+    : 'Force colorante F : importez l’échantillon et la référence pour la calculer.');
+}
+
+/* ---------- Panneau de gauche ---------- */
+
+const selColorant = document.getElementById('spc-colorant');
+const inpColorantNouveau = document.getElementById('spc-nouveau');
+
+function typeMesure() {
+  return document.querySelector('input[name="spc-type"]:checked').value;
+}
+function mesureCourante() {
+  const col = colorantActif();
+  return col ? col[typeMesure()] : null;
+}
+
+function rendreSpectrePanneau() {
+  document.getElementById('badge-spectre').textContent = spectres.colorants.length || '';
+  selColorant.textContent = '';
+  spectres.colorants.forEach((c, i) => selColorant.append(new Option(c.nom, i)));
+  selColorant.append(new Option('➕ Nouveau colorant…', 'nouveau'));
+  selColorant.value = spectres.colorants.length ? String(spectres.actif) : 'nouveau';
+  majModeNouveau();
+}
+function majModeNouveau() {
+  const nouveau = selColorant.value === 'nouveau';
+  inpColorantNouveau.hidden = !nouveau;
+  document.getElementById('spc-actions-nouveau').hidden = !nouveau;
+  document.getElementById('spc-suppr').hidden = nouveau;
+  document.getElementById('spc-mesure').hidden = nouveau || !colorantActif();
+  if (!nouveau) chargerChampsMesure();
+}
+function chargerChampsMesure() {
+  const mes = mesureCourante();
+  if (!mes) return;
+  const iM = document.getElementById('spc-masse'), iV = document.getElementById('spc-volume');
+  if (iM !== document.activeElement) iM.value = mes.masse ?? '';
+  if (iV !== document.activeElement) iV.value = mes.volume ?? '';
+  majAffichageConc();
+  rendreEtatSpectres();
+}
+function majAffichageConc() {
+  const mes = mesureCourante();
+  const c = mes ? concentration(mes) : null;
+  document.getElementById('spc-conc').textContent = c !== null
+    ? `C = masse / volume = ${fmtSpc.conc(c)}`
+    : 'C = masse / volume — à renseigner avant l’import.';
+}
+function rendreEtatSpectres() {
+  const zone = document.getElementById('spc-etat');
+  zone.textContent = '';
+  const col = colorantActif();
+  if (!col) return;
+  [['echantillon', 'Échantillon'], ['reference', 'Référence']].forEach(([cle, etiquette]) => {
+    const mes = col[cle];
+    if (!mes.pts.length) return;
+    const ligne = document.createElement('div');
+    ligne.className = 'spc-etat-ligne';
+    const txt = document.createElement('span');
+    txt.className = 'texte';
+    const c = concentration(mes);
+    txt.textContent = `${etiquette} — ${mes.pts.length} pts${c !== null ? ` · C = ${fmtSpc.conc(c)}` : ''}`;
+    const sup = document.createElement('button');
+    sup.className = 'suppr'; sup.textContent = '✕';
+    sup.title = `Supprimer le spectre ${etiquette.toLowerCase()}`;
+    armerSuppr(sup, () => { col[cle] = normaliserMesure(null); majSpectres(); });
+    ligne.append(txt, sup);
+    zone.appendChild(ligne);
+  });
+}
+
+function majSpectres() {
+  sauverSpectres();
+  rendreSpectrePanneau();
+  rendreResultatsSpectre();
+  requestAnimationFrame(dessinerSpectre);
+}
+
+selColorant.addEventListener('change', () => {
+  if (selColorant.value === 'nouveau') { majModeNouveau(); inpColorantNouveau.focus(); return; }
+  spectres.actif = +selColorant.value;
+  majSpectres();
+});
+document.getElementById('spc-creer').addEventListener('click', () => {
+  const nom = inpColorantNouveau.value.trim() || `Colorant ${spectres.colorants.length + 1}`;
+  spectres.colorants.push({ nom, echantillon: normaliserMesure(null), reference: normaliserMesure(null) });
+  spectres.actif = spectres.colorants.length - 1;
+  inpColorantNouveau.value = '';
+  majSpectres();
+});
+armerSuppr(document.getElementById('spc-suppr'), () => {
+  if (!colorantActif()) return;
+  spectres.colorants.splice(spectres.actif, 1);
+  spectres.actif = Math.max(0, Math.min(spectres.actif, spectres.colorants.length - 1));
+  majSpectres();
+});
+document.querySelectorAll('input[name="spc-type"]').forEach(r =>
+  r.addEventListener('change', chargerChampsMesure));
+[['spc-masse', 'masse'], ['spc-volume', 'volume']].forEach(([id, cle]) => {
+  document.getElementById(id).addEventListener('input', () => {
+    const mes = mesureCourante();
+    if (!mes) return;
+    const v = parseFloat(document.getElementById(id).value);
+    mes[cle] = Number.isFinite(v) && v > 0 ? v : null;
+    sauverSpectres();
+    majAffichageConc();
+    rendreEtatSpectres();
+    rendreResultatsSpectre();
+  });
+});
+
+/* Import du spectre : la concentration (masse + volume) est exigée en
+   préambule, puis le fichier Excel est lu comme pour la palette. */
+const fichierSpc = document.getElementById('spc-fichier');
+const spcMsgEl = document.getElementById('spc-msg');
+function messageSpc(txt) { spcMsgEl.textContent = txt; spcMsgEl.hidden = !txt; }
+
+document.getElementById('spc-importer').addEventListener('click', () => {
+  const mes = mesureCourante();
+  if (!mes) { messageSpc('Créez ou sélectionnez d’abord un colorant.'); return; }
+  if (concentration(mes) === null) {
+    messageSpc('Renseignez d’abord la masse et le volume : la concentration C = masse / volume accompagne chaque spectre.');
+    return;
+  }
+  messageSpc('');
+  fichierSpc.click();
+});
+fichierSpc.addEventListener('change', async () => {
+  const f = fichierSpc.files[0];
+  fichierSpc.value = '';
+  if (!f) return;
+  const type = typeMesure();
+  messageSpc('Lecture du fichier…');
+  try {
+    const XLSX = await chargerXLSX();
+    const buf = await f.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const feuille = wb.Sheets[wb.SheetNames[0]];
+    const lignes = XLSX.utils.sheet_to_json(feuille, { header: 1, blankrows: false });
+    const pts = spectreDepuisFeuille(lignes);
+    colorantActif()[type].pts = pts;
+    majSpectres();
+    messageSpc(`${pts.length} points importés (${type === 'reference' ? 'référence' : 'échantillon'}).`);
+    setTimeout(() => messageSpc(''), 4000);
+  } catch (e) {
+    messageSpc(`Import impossible : ${e.message}. Attendu : une colonne λ (nm) et une colonne A.`);
+  }
+});
+
+/* ==================== Sélecteur d'affichage ==================== */
+
+const selVue = document.getElementById('sel-vue');
+function appliquerVue() {
+  const vue = selVue.value;
+  document.querySelectorAll('[data-vue]').forEach(el => { el.hidden = el.dataset.vue !== vue; });
+  try { localStorage.setItem('rouelab.vue', vue); } catch (e) {}
+  requestAnimationFrame(redessiner);
+}
+selVue.addEventListener('change', appliquerVue);
+try { if (localStorage.getItem('rouelab.vue') === 'spectre') selVue.value = 'spectre'; } catch (e) {}
+
 /* ==================== Orchestration ==================== */
 
-function redessiner() { dessinerRoue(); dessiner3d(); dessinerLc(); }
+function redessiner() { dessinerRoue(); dessiner3d(); dessinerLc(); dessinerSpectre(); }
 
 function majTout(refaireListe) {
   sauverPoints();
@@ -1667,6 +2198,9 @@ document.querySelectorAll('.zone-canvas').forEach(z => observateur.observe(z));
 
 rendreListe();
 rendreBib();
+rendreSpectrePanneau();
+rendreResultatsSpectre();
+appliquerVue();
 redessiner();
 </script>
 
