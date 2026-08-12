@@ -387,6 +387,29 @@
   }
   .nuancier-roue button.hors { visibility: hidden; }
 
+  /* ---------- Sélecteur de colorant avec recherche ---------- */
+  .combo { position: relative; }
+  .combo-champ { width: 100%; cursor: pointer; }
+  .combo-liste {
+    position: absolute; top: calc(100% + 3px); left: 0; right: 0; z-index: 40;
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 6px;
+    max-height: 230px; overflow-y: auto; padding: 3px;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.28);
+  }
+  .combo-option {
+    width: 100%; text-align: left; border: none; background: none;
+    border-radius: 4px; padding: 5px 7px; font-size: 13px;
+    display: flex; align-items: center; gap: 7px; cursor: pointer;
+  }
+  .combo-option:hover, .combo-option.survol { background: var(--input-bg); color: var(--ink); }
+  .combo-option.choisi { color: var(--accent); }
+  .combo-sw {
+    width: 13px; height: 13px; border-radius: 3px; flex: none;
+    border: 1px solid rgba(0,0,0,.25);
+  }
+  .combo-option .nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .combo-vide { padding: 8px 7px; font-size: 12px; color: var(--muted); }
+
   /* ---------- Carte d'identité ---------- */
   .id-grille {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -559,9 +582,9 @@
       <summary><h2>Mélange de colorants</h2><span class="badge" id="badge-melange"></span></summary>
       <div class="bloc-corps">
         <div id="mel-liste"></div>
+        <div id="mel-ajout" style="margin-top:10px" aria-label="Ajouter un colorant au mélange"></div>
         <div class="actions">
-          <button id="mel-nuancier" title="Choisir un colorant parmi toutes les nuances de la roue">🎨 Nuancier</button>
-          <button id="mel-depuis-palette" title="Reprendre les couleurs de la palette comme colorants">Depuis la palette</button>
+          <button id="mel-depuis-palette" title="Reprendre toute la palette comme colorants">Toute la palette</button>
           <button id="mel-vider">Vider</button>
         </div>
         <p class="note" id="mel-msg" hidden></p>
@@ -625,14 +648,8 @@
       <summary><h2>Analyse spectrale</h2><span class="badge" id="badge-spectre"></span></summary>
       <div class="bloc-corps">
         <p class="spc-sous-titre" style="margin-top:8px">Colorant</p>
-        <div class="spc-ligne-colorant">
-          <select id="spc-colorant" aria-label="Colorant analysé"></select>
-          <button id="spc-suppr" class="suppr" title="Supprimer ce colorant" aria-label="Supprimer ce colorant">✕</button>
-        </div>
-        <input type="text" id="spc-nouveau" placeholder="Nom du nouveau colorant" hidden style="margin-top:6px">
-        <div class="actions" id="spc-actions-nouveau" hidden style="margin-top:8px">
-          <button id="spc-creer">Créer le colorant</button>
-        </div>
+        <div id="spc-colorant" aria-label="Colorant analysé"></div>
+        <p class="note" id="spc-vide" hidden>Aucun colorant : ajoutez des couleurs dans le panneau « Palette » de la vue Roue chromatique.</p>
         <div id="spc-mesure" hidden>
           <p class="spc-sous-titre">Mesure à importer</p>
           <div class="spc-radio" role="radiogroup" aria-label="Type de mesure">
@@ -657,16 +674,10 @@
       <summary><h2>Carte d'identité</h2><span class="badge" id="badge-identite"></span></summary>
       <div class="bloc-corps">
         <p class="spc-sous-titre" style="margin-top:8px">Colorant</p>
-        <div class="spc-ligne-colorant">
-          <select id="id-colorant" aria-label="Colorant"></select>
-          <button id="id-suppr" class="suppr" title="Supprimer ce colorant" aria-label="Supprimer ce colorant">✕</button>
-        </div>
-        <input type="text" id="id-nouveau" placeholder="Nom du nouveau colorant" hidden style="margin-top:6px">
-        <div class="actions" id="id-actions-nouveau" hidden style="margin-top:8px">
-          <button id="id-creer">Créer le colorant</button>
-        </div>
+        <div id="id-colorant" aria-label="Colorant"></div>
+        <p class="note" id="id-vide" hidden>Aucun colorant : ajoutez des couleurs dans le panneau « Palette » de la vue Roue chromatique.</p>
         <p class="note" id="id-msg" hidden></p>
-        <p class="note" style="margin-top:12px">Les colorants sont partagés avec l'analyse spectrale : un même produit porte ici son identité et ses essais, et là ses spectres.</p>
+        <p class="note" style="margin-top:12px">Les colorants viennent tous de la palette : un même produit y porte son nom, et ici son identité, ses essais et ses spectres.</p>
       </div>
     </details>
     <details class="bloc" id="bloc-compte" hidden>
@@ -931,9 +942,22 @@ function nombreBorne(v, min, max, defaut) {
   if (!Number.isFinite(n)) return defaut;
   return Math.min(max, Math.max(min, n));
 }
+/* Identifiant stable d'un point de palette. C'est lui — et non le nom — qui
+   relie un colorant à ses spectres, à sa carte d'identité et aux mélanges :
+   renommer une couleur n'égare donc aucune donnée. */
+/* Sans état de module : `chargerPoints()` s'exécute avant la plupart des
+   déclarations `let` du fichier, qui seraient encore en zone morte. */
+function nouvelId() {
+  const alea = (globalThis.crypto && crypto.randomUUID)
+    ? crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+    : Math.random().toString(36).slice(2, 14);
+  return `c${Date.now().toString(36)}${alea}`;
+}
 function normaliserPoint(p) {
   const o = (p && typeof p === 'object') ? p : {};
+  const id = typeof o.id === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(o.id) ? o.id : nouvelId();
   return {
+    id,
     nom: typeof o.nom === 'string' ? o.nom : String(o.nom ?? 'Point'),
     L: nombreBorne(o.L, 0, 100, 60),
     a: nombreBorne(o.a, -128, 127, 0),
@@ -942,7 +966,142 @@ function normaliserPoint(p) {
   };
 }
 function normaliserPoints(arr) {
-  return Array.isArray(arr) ? arr.map(normaliserPoint) : [];
+  const vus = new Set();
+  return (Array.isArray(arr) ? arr : []).map(p => {
+    const n = normaliserPoint(p);
+    if (vus.has(n.id)) n.id = nouvelId();     // deux points ne partagent jamais un id
+    vus.add(n.id);
+    return n;
+  });
+}
+
+/* La palette est l'unique source de vérité des colorants : tout le reste du
+   site n'en garde qu'un identifiant et lit le nom et les coordonnées ici. */
+function pointParId(id) {
+  return id ? points.find(p => p.id === id) || null : null;
+}
+function nomColorant(id) {
+  const p = pointParId(id);
+  return p ? p.nom : '';
+}
+
+/* ---------- Sélecteur de colorant avec recherche ----------
+   Un <select> natif ne se filtre pas : on assemble un combobox — champ de
+   saisie + liste filtrée — qui ne propose jamais que des noms de la palette.
+   Chaque instance s'enregistre pour être rafraîchie dès que la palette bouge. */
+const combos = [];
+function sansAccents(s) {
+  return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
+function creerComboColorant(hote, { valeur, surChoix, placeholder }) {
+  hote.textContent = '';
+  hote.classList.add('combo');
+  const champ = document.createElement('input');
+  champ.type = 'text';
+  champ.className = 'combo-champ';
+  champ.placeholder = placeholder || 'Choisir un colorant…';
+  champ.autocomplete = 'off';
+  champ.setAttribute('role', 'combobox');
+  champ.setAttribute('aria-expanded', 'false');
+  const liste = document.createElement('div');
+  liste.className = 'combo-liste';
+  liste.hidden = true;
+  hote.append(champ, liste);
+
+  let ouvert = false, filtre = '', surligne = -1, options = [];
+
+  const majTexte = () => { if (champ !== document.activeElement) champ.value = nomColorant(valeur()); };
+  const fermer = () => {
+    ouvert = false; liste.hidden = true;
+    champ.setAttribute('aria-expanded', 'false');
+    champ.value = nomColorant(valeur());
+  };
+  const choisir = id => { surChoix(id); fermer(); };
+
+  const rendre = () => {
+    liste.textContent = '';
+    const q = sansAccents(filtre.trim());
+    options = q ? points.filter(p => sansAccents(p.nom).includes(q)) : points.slice();
+    if (!points.length || !options.length) {
+      const v = document.createElement('div');
+      v.className = 'combo-vide';
+      v.textContent = points.length
+        ? 'Aucun colorant ne correspond à cette recherche.'
+        : 'La palette est vide — ajoutez des couleurs dans « Palette ».';
+      liste.appendChild(v);
+      options = [];
+      return;
+    }
+    options.forEach((p, i) => {
+      const opt = document.createElement('button');
+      opt.type = 'button';
+      opt.className = 'combo-option'
+        + (i === surligne ? ' survol' : '')
+        + (p.id === valeur() ? ' choisi' : '');
+      const sw = document.createElement('span');
+      sw.className = 'combo-sw';
+      sw.style.background = rgbToCss(labToRgb(p.L, p.a, p.b));
+      const nom = document.createElement('span');
+      nom.className = 'nom';
+      nom.textContent = p.nom;                 // jamais d'innerHTML : nom non fiable
+      opt.append(sw, nom);
+      // mousedown plutôt que click : le blur du champ ne doit pas nous devancer
+      opt.addEventListener('mousedown', e => { e.preventDefault(); choisir(p.id); });
+      liste.appendChild(opt);
+    });
+  };
+  const ouvrir = () => {
+    ouvert = true; liste.hidden = false;
+    champ.setAttribute('aria-expanded', 'true');
+    filtre = ''; surligne = -1;
+    rendre();
+  };
+
+  champ.addEventListener('focus', () => { ouvrir(); champ.select(); });
+  // La saisie ouvre la liste sans repasser par `ouvrir`, qui remettrait le
+  // filtre à zéro et perdrait ce que l'utilisateur vient de taper.
+  champ.addEventListener('input', () => {
+    filtre = champ.value;
+    surligne = -1;
+    if (!ouvert) {
+      ouvert = true; liste.hidden = false;
+      champ.setAttribute('aria-expanded', 'true');
+    }
+    rendre();
+  });
+  champ.addEventListener('blur', () => setTimeout(fermer, 0));
+  champ.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!ouvert) { ouvrir(); return; }
+      if (!options.length) return;
+      surligne = e.key === 'ArrowDown'
+        ? (surligne + 1) % options.length
+        : (surligne <= 0 ? options.length : surligne) - 1;
+      rendre();
+      const el = liste.children[surligne];
+      if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter') {
+      if (ouvert && options.length) { e.preventDefault(); choisir(options[Math.max(0, surligne)].id); }
+    } else if (e.key === 'Escape' && ouvert) {
+      e.stopPropagation();                     // ne pas fermer aussi le panneau parent
+      fermer(); champ.blur();
+    }
+  });
+
+  const api = { hote, rafraichir: () => (ouvert ? rendre() : majTexte()) };
+  combos.push(api);
+  majTexte();
+  return api;
+}
+/* Certains combos sont reconstruits avec leur panneau : on oublie au passage
+   ceux dont l'hôte a quitté le document, sinon la liste enflerait sans fin. */
+function rafraichirCombos() {
+  for (let i = combos.length - 1; i >= 0; i--) {
+    if (!combos[i].hote.isConnected) combos.splice(i, 1);
+    else combos[i].rafraichir();
+  }
 }
 /* Assainit un dossier de bibliothèque venu d'une source non fiable. */
 function normaliserDossiers(arr) {
@@ -1112,7 +1271,7 @@ function dessinerRoue() {
   });
 
   // Colorants du mélange : carrés, pour les distinguer des points de palette
-  melange.colorants.forEach(c => {
+  colorantsMelange().forEach(c => {
     const x = cx + c.a * ech, y = cy - c.b * ech;
     ctx.beginPath(); ctx.roundRect(x - 8, y - 8, 16, 16, 4);
     ctx.fillStyle = rgbToCss(labToRgb(c.L, c.a, c.b)); ctx.fill();
@@ -1181,7 +1340,10 @@ function normaliserNuance(n) {
 function normaliserMelange(m) {
   const o = (m && typeof m === 'object') ? m : {};
   return {
-    colorants: (Array.isArray(o.colorants) ? o.colorants : []).slice(0, MEL_MAX).map(normaliserNuance),
+    // Uniquement des identifiants de points de palette : aucune copie de couleur.
+    colorants: (Array.isArray(o.colorants) ? o.colorants : [])
+      .filter(v => typeof v === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v))
+      .slice(0, MEL_MAX),
     cible: o.cible ? normaliserNuance(o.cible) : null,
     gamme: !!o.gamme,
     masse: nombreBorne(o.masse, 0.001, 1e6, 100),
@@ -1220,8 +1382,13 @@ function labDepuisKs(KS) {
   });
   return rgbToLab(rgb[0], rgb[1], rgb[2]);
 }
+/* Résout les identifiants du mélange en points de palette. `synchroniserColorants`
+   ayant écarté les références mortes, l'ordre correspond à celui des poids. */
+function colorantsMelange() {
+  return melange.colorants.map(pointParId).filter(Boolean);
+}
 function ksColorants() {
-  return melange.colorants.map(c => ksDepuisLab(c.L, c.a, c.b));
+  return colorantsMelange().map(c => ksDepuisLab(c.L, c.a, c.b));
 }
 function labDepuisMelange(ksList, poids, profondeur) {
   let s = 0;
@@ -1310,7 +1477,7 @@ function resoudreMelange(cible) {
 let cacheVoile = null, cacheVoileCle = '';
 
 function voileGamme(res) {
-  const cle = melange.colorants.map(c => `${c.L},${c.a},${c.b}`).join('|') + `#${res}#${cMax}`;
+  const cle = colorantsMelange().map(c => `${c.L},${c.a},${c.b}`).join('|') + `#${res}#${cMax}`;
   if (cacheVoileCle === cle) return cacheVoile;
   const n = melange.colorants.length;
   cacheVoileCle = cle;
@@ -1372,7 +1539,7 @@ function rendreMelange() {
     zone.appendChild(p);
   } else {
     const sol = melange.solution;
-    melange.colorants.forEach((c, i) => {
+    colorantsMelange().forEach((c, i) => {
       const ligne = document.createElement('div');
       ligne.className = 'col-ligne';
       const sw = document.createElement('span');
@@ -1403,7 +1570,7 @@ function texteFormule() {
   const sol = melange.solution;
   if (!sol || !melange.cible) return '';
   const lignes = [`Formule pour ${melange.cible.nom} (L* ${melange.cible.L} · a* ${melange.cible.a} · b* ${melange.cible.b})`];
-  melange.colorants.forEach((c, i) => {
+  colorantsMelange().forEach((c, i) => {
     lignes.push(`${c.nom} : ${(sol.poids[i] * 100).toFixed(1)} % — ${(sol.poids[i] * melange.masse).toFixed(2)} g`);
   });
   lignes.push(`Masse totale : ${melange.masse} g`);
@@ -1436,7 +1603,7 @@ function rendreFormule() {
   });
   thead.appendChild(trh);
   const tbody = document.createElement('tbody');
-  melange.colorants.forEach((c, i) => {
+  colorantsMelange().forEach((c, i) => {
     const tr = document.createElement('tr');
     const tdN = document.createElement('td');
     const sw = document.createElement('span');
@@ -1484,16 +1651,13 @@ function rendreFormule() {
 /* ---------- Nuancier ---------- */
 
 const nuancierEl = document.getElementById('nuancier');
-let nuancierMode = 'colorant';           // 'colorant' | 'cible'
+/* Le nuancier ne sert plus qu'à désigner la teinte cible : les colorants,
+   eux, viennent obligatoirement de la palette. */
 
-function ouvrirNuancier(mode) {
-  nuancierMode = mode;
-  document.getElementById('nuancier-titre').textContent =
-    mode === 'cible' ? 'Nuancier — teinte à reproduire' : 'Nuancier — ajouter un colorant';
+function ouvrirNuancier() {
+  document.getElementById('nuancier-titre').textContent = 'Nuancier — teinte à reproduire';
   document.getElementById('nuancier-note').textContent =
-    mode === 'cible'
-      ? 'La nuance choisie devient la cible : la formule est recalculée aussitôt.'
-      : `Choisissez une nuance de la palette ou de la roue (${MEL_MAX} colorants au maximum).`;
+    'La nuance choisie devient la cible : la formule est recalculée aussitôt.';
   const slider = document.getElementById('nuancier-l');
   slider.value = String(Math.min(95, Math.max(5, Math.round(lFond / 5) * 5)));
   document.getElementById('nuancier-out-l').textContent = slider.value;
@@ -1504,12 +1668,7 @@ function ouvrirNuancier(mode) {
 function fermerNuancier() { nuancierEl.hidden = true; }
 
 function choisirNuance(n) {
-  if (nuancierMode === 'cible') {
-    melange.cible = normaliserNuance(n);
-  } else {
-    if (melange.colorants.length >= MEL_MAX) { messageMel(`${MEL_MAX} colorants au maximum.`); return; }
-    melange.colorants.push(normaliserNuance(n));
-  }
+  melange.cible = normaliserNuance(n);
   fermerNuancier();
   majMelange(true);
 }
@@ -1562,15 +1721,24 @@ document.getElementById('nuancier-l').addEventListener('input', () => {
 
 /* ---------- Boutons du panneau ---------- */
 
-document.getElementById('mel-nuancier').addEventListener('click', () => ouvrirNuancier('colorant'));
 document.getElementById('mel-cible-nuancier').addEventListener('click', () => ouvrirNuancier('cible'));
+creerComboColorant(document.getElementById('mel-ajout'), {
+  valeur: () => '',                       // toujours vide : c'est un ajout, pas une sélection
+  placeholder: '+ Ajouter un colorant de la palette…',
+  surChoix: id => {
+    if (melange.colorants.includes(id)) { messageMel('Ce colorant est déjà dans le mélange.'); return; }
+    if (melange.colorants.length >= MEL_MAX) { messageMel(`${MEL_MAX} colorants au maximum.`); return; }
+    melange.colorants.push(id);
+    majMelange(true);
+  }
+});
 document.getElementById('mel-depuis-palette').addEventListener('click', () => {
   if (!points.length) { messageMel('La palette est vide.'); return; }
   let ajoutes = 0;
   for (const p of points) {
     if (melange.colorants.length >= MEL_MAX) break;
-    if (melange.colorants.some(c => c.nom === p.nom && c.L === p.L && c.a === p.a && c.b === p.b)) continue;
-    melange.colorants.push(normaliserNuance(p));
+    if (melange.colorants.includes(p.id)) continue;
+    melange.colorants.push(p.id);
     ajoutes++;
   }
   majMelange(true);
@@ -2361,7 +2529,6 @@ function dateBornee(v) {
 function normaliserIdentite(o) {
   const i = (o && typeof o === 'object') ? o : {};
   return {
-    reference: texteBorne(i.reference, 120),
     fournisseur: texteBorne(i.fournisseur, 120),
     ci: texteBorne(i.ci, 60),
     lot: texteBorne(i.lot, 60),
@@ -2412,7 +2579,8 @@ function normaliserColorants(arr) {
     const essais = {};
     for (const t of TYPES_ESSAIS) essais[t] = normaliserEssais(es[t]);
     return {
-      nom: typeof o.nom === 'string' ? o.nom : String(o.nom ?? 'Colorant'),
+      // Référence vers le point de palette ; le nom n'est jamais dupliqué ici.
+      id: typeof o.id === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(o.id) ? o.id : '',
       echantillon: normaliserMesure(o.echantillon),
       reference: normaliserMesure(o.reference),
       identite: normaliserIdentite(o.identite),
@@ -2424,10 +2592,20 @@ function normaliserColorants(arr) {
 function chargerSpectres() {
   try {
     const brut = JSON.parse(localStorage.getItem('rouelab.spectres.v1'));
-    const colorants = normaliserColorants(brut && brut.colorants);
-    const actif = Math.floor(nombreBorne(brut && brut.actif, 0, Math.max(0, colorants.length - 1), 0));
-    return { colorants, actif };
-  } catch (e) { return { colorants: [], actif: 0 }; }
+    const source = Array.isArray(brut && brut.colorants) ? brut.colorants : [];
+    // Migration des données antérieures, qui portaient un nom libre au lieu
+    // d'une référence de palette : on rattache par nom quand c'est possible.
+    const rattache = source.map(c => {
+      if (c && typeof c === 'object' && !c.id && typeof c.nom === 'string') {
+        const p = points.find(q => q.nom === c.nom);
+        if (p) return { ...c, id: p.id };
+      }
+      return c;
+    });
+    const colorants = normaliserColorants(rattache).filter(c => c.id);
+    const actif = typeof (brut && brut.actif) === 'string' ? brut.actif : '';
+    return { colorants, actif: pointParId(actif) ? actif : (points[0] ? points[0].id : '') };
+  } catch (e) { return { colorants: [], actif: points[0] ? points[0].id : '' }; }
 }
 const spectres = chargerSpectres();
 /* Renvoie false si l'écriture échoue — le quota du navigateur peut être
@@ -2439,7 +2617,29 @@ function sauverSpectres() {
     return true;
   } catch (e) { return false; }
 }
-function colorantActif() { return spectres.colorants[spectres.actif] || null; }
+/* Les données d'un colorant (spectres, identité, essais) sont créées à la
+   demande et retrouvées par l'identifiant du point de palette. */
+function donneesColorant(id) {
+  if (!pointParId(id)) return null;
+  let d = spectres.colorants.find(c => c.id === id);
+  if (!d) {
+    d = normaliserColorants([{ id }])[0];
+    spectres.colorants.push(d);
+  }
+  return d;
+}
+function colorantActif() { return donneesColorant(spectres.actif); }
+function nomColorantActif() { return nomColorant(spectres.actif); }
+
+/* Appelé après toute modification de la palette : la sélection courante doit
+   rester valide et les mélanges ne référencer que des couleurs existantes. */
+function synchroniserColorants() {
+  if (!pointParId(spectres.actif)) spectres.actif = points[0] ? points[0].id : '';
+  const avant = melange.colorants.length;
+  melange.colorants = melange.colorants.filter(id => pointParId(id));
+  if (melange.colorants.length !== avant) { melange.solution = null; sauverMelange(); }
+  rafraichirCombos();
+}
 function concentration(mes) {
   return mes && mes.masse > 0 && mes.volume > 0 ? mes.masse / mes.volume : null;
 }
@@ -2668,7 +2868,7 @@ function rendreResultatsSpectre() {
     if (c !== null) txt += ` · C = ${fmtSpc.conc(c)}`;
     ajouter(txt);
   };
-  decrire(`Échantillon — ${col.nom}`, col.echantillon);
+  decrire(`Échantillon — ${nomColorantActif()}`, col.echantillon);
   decrire('Référence', col.reference);
   const F = forceColorante();
   ajouter(F !== null
@@ -2679,7 +2879,6 @@ function rendreResultatsSpectre() {
 /* ---------- Panneau de gauche ---------- */
 
 const selColorant = document.getElementById('spc-colorant');
-const inpColorantNouveau = document.getElementById('spc-nouveau');
 
 function typeMesure() {
   return document.querySelector('input[name="spc-type"]:checked').value;
@@ -2690,20 +2889,11 @@ function mesureCourante() {
 }
 
 function rendreSpectrePanneau() {
-  document.getElementById('badge-spectre').textContent = spectres.colorants.length || '';
-  selColorant.textContent = '';
-  spectres.colorants.forEach((c, i) => selColorant.append(new Option(c.nom, i)));
-  selColorant.append(new Option('➕ Nouveau colorant…', 'nouveau'));
-  selColorant.value = spectres.colorants.length ? String(spectres.actif) : 'nouveau';
-  majModeNouveau();
-}
-function majModeNouveau() {
-  const nouveau = selColorant.value === 'nouveau';
-  inpColorantNouveau.hidden = !nouveau;
-  document.getElementById('spc-actions-nouveau').hidden = !nouveau;
-  document.getElementById('spc-suppr').hidden = nouveau;
-  document.getElementById('spc-mesure').hidden = nouveau || !colorantActif();
-  if (!nouveau) chargerChampsMesure();
+  document.getElementById('badge-spectre').textContent = points.length || '';
+  document.getElementById('spc-vide').hidden = points.length > 0;
+  document.getElementById('spc-mesure').hidden = !colorantActif();
+  rafraichirCombos();
+  if (colorantActif()) chargerChampsMesure();
 }
 function chargerChampsMesure() {
   const mes = mesureCourante();
@@ -2752,23 +2942,15 @@ function majSpectres() {
   requestAnimationFrame(dessinerSpectre);
 }
 
-selColorant.addEventListener('change', () => {
-  if (selColorant.value === 'nouveau') { majModeNouveau(); inpColorantNouveau.focus(); return; }
-  spectres.actif = +selColorant.value;
+function choisirColorantActif(id) {
+  if (!pointParId(id)) return;
+  spectres.actif = id;
   majSpectres();
-});
-document.getElementById('spc-creer').addEventListener('click', () => {
-  const nom = inpColorantNouveau.value.trim() || `Colorant ${spectres.colorants.length + 1}`;
-  spectres.colorants.push(normaliserColorants([{ nom }])[0]);
-  spectres.actif = spectres.colorants.length - 1;
-  inpColorantNouveau.value = '';
-  majSpectres();
-});
-armerSuppr(document.getElementById('spc-suppr'), () => {
-  if (!colorantActif()) return;
-  spectres.colorants.splice(spectres.actif, 1);
-  spectres.actif = Math.max(0, Math.min(spectres.actif, spectres.colorants.length - 1));
-  majSpectres();
+}
+creerComboColorant(selColorant, {
+  valeur: () => spectres.actif,
+  surChoix: choisirColorantActif,
+  placeholder: 'Rechercher un colorant…'
 });
 document.querySelectorAll('input[name="spc-type"]').forEach(r =>
   r.addEventListener('change', chargerChampsMesure));
@@ -2829,8 +3011,9 @@ fichierSpc.addEventListener('change', async () => {
    et là ses spectres. Les photos sont ré-encodées et réduites avant d'être
    stockées, le quota du navigateur étant vite atteint sinon. */
 
+/* « Référence du colorant » n'est plus un texte libre : c'est la couleur de
+   palette que décrit la fiche, choisie au même sélecteur que partout ailleurs. */
 const CHAMPS_ID = [
-  ['reference', 'Référence du colorant', 'text'],
   ['fournisseur', 'Fournisseur', 'text'],
   ['ci', 'Color Index (CI)', 'text'],
   ['lot', 'Numéro de lot', 'text'],
@@ -2927,18 +3110,10 @@ function rendreIdentite() {
   document.getElementById('badge-identite').textContent =
     col ? TYPES_ESSAIS.reduce((t, k) => t + col.essais[k].length, 0) || '' : '';
 
-  const sel = document.getElementById('id-colorant');
-  sel.textContent = '';
-  spectres.colorants.forEach((c, i) => sel.append(new Option(c.nom, i)));
-  sel.append(new Option('➕ Nouveau colorant…', 'nouveau'));
-  sel.value = spectres.colorants.length ? String(spectres.actif) : 'nouveau';
-  const nouveau = sel.value === 'nouveau';
-  document.getElementById('id-nouveau').hidden = !nouveau;
-  document.getElementById('id-actions-nouveau').hidden = !nouveau;
-  document.getElementById('id-suppr').hidden = nouveau;
-
+  document.getElementById('id-vide').hidden = points.length > 0;
+  rafraichirCombos();
   document.getElementById('id-titre').textContent =
-    col ? `Carte d'identité — ${col.nom}` : "Carte d'identité";
+    col ? `Carte d'identité — ${nomColorantActif()}` : "Carte d'identité";
   rendreGeneral();
   rendreEssais();
 }
@@ -2950,12 +3125,26 @@ function rendreGeneral() {
   if (!col) {
     const p = document.createElement('p');
     p.className = 'note';
-    p.textContent = 'Créez ou sélectionnez un colorant dans le panneau de gauche.';
+    p.textContent = points.length
+      ? 'Choisissez un colorant dans le panneau de gauche.'
+      : 'Aucun colorant : ajoutez d’abord des couleurs dans la palette (vue Roue chromatique).';
     zone.appendChild(p);
     return;
   }
   const grille = document.createElement('div');
   grille.className = 'id-grille';
+
+  const labRef = document.createElement('label');
+  labRef.append(document.createTextNode('Référence du colorant'));
+  const hoteRef = document.createElement('div');
+  labRef.appendChild(hoteRef);
+  grille.appendChild(labRef);
+  creerComboColorant(hoteRef, {
+    valeur: () => spectres.actif,
+    surChoix: choisirColorantActif,
+    placeholder: 'Rechercher dans la palette…'
+  });
+
   CHAMPS_ID.forEach(([cle, libelle, type]) => {
     const lab = document.createElement('label');
     lab.append(document.createTextNode(libelle));
@@ -3003,7 +3192,7 @@ function rendreEssais() {
   if (!liste.length) {
     const p = document.createElement('p');
     p.className = 'essais-vide';
-    p.textContent = `Aucun essai de ${def.titre.toLowerCase()} enregistré pour ${col.nom}.`;
+    p.textContent = `Aucun essai de ${def.titre.toLowerCase()} enregistré pour ${nomColorantActif()}.`;
     zone.appendChild(p);
     return;
   }
@@ -3282,33 +3471,10 @@ document.querySelectorAll('.onglet').forEach(btn => {
   btn.addEventListener('click', () => { ongletActif = btn.dataset.onglet; rendreEssais(); });
 });
 
-document.getElementById('id-colorant').addEventListener('change', e => {
-  if (e.target.value === 'nouveau') {
-    rendreIdentite();
-    document.getElementById('id-nouveau').focus();
-    return;
-  }
-  spectres.actif = +e.target.value;
-  sauverSpectres();
-  rendreIdentite();
-  rendreSpectrePanneau();
-  rendreResultatsSpectre();
-  requestAnimationFrame(dessinerSpectre);
-});
-document.getElementById('id-creer').addEventListener('click', () => {
-  const champ = document.getElementById('id-nouveau');
-  const nom = champ.value.trim() || `Colorant ${spectres.colorants.length + 1}`;
-  spectres.colorants.push(normaliserColorants([{ nom }])[0]);
-  spectres.actif = spectres.colorants.length - 1;
-  champ.value = '';
-  messageIdentite('');
-  majSpectres();
-});
-armerSuppr(document.getElementById('id-suppr'), () => {
-  if (!colorantActif()) return;
-  spectres.colorants.splice(spectres.actif, 1);
-  spectres.actif = Math.max(0, Math.min(spectres.actif, spectres.colorants.length - 1));
-  majSpectres();
+creerComboColorant(document.getElementById('id-colorant'), {
+  valeur: () => spectres.actif,
+  surChoix: choisirColorantActif,
+  placeholder: 'Rechercher un colorant…'
 });
 
 /* ==================== Sélecteur d'affichage ==================== */
@@ -3351,6 +3517,16 @@ function majTout(refaireListe) {
       });
     });
   }
+  // La palette étant la source unique des colorants, tout changement (ajout,
+  // renommage, suppression) se répercute ici sur l'ensemble des sélecteurs.
+  synchroniserColorants();
+  rendreMelange();
+  document.getElementById('spc-vide').hidden = points.length > 0;
+  document.getElementById('id-vide').hidden = points.length > 0;
+  document.getElementById('spc-mesure').hidden = !colorantActif();
+  document.getElementById('badge-spectre').textContent = points.length || '';
+  const titre = document.getElementById('id-titre');
+  titre.textContent = spectres.actif ? `Carte d'identité — ${nomColorantActif()}` : "Carte d'identité";
   requestAnimationFrame(redessiner);
 }
 
