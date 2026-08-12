@@ -180,7 +180,7 @@
     font-size: 11px; color: var(--muted);
   }
   .pt-nums code { font-size: 11px; color: var(--muted); justify-self: end; }
-  input[type="text"], input[type="number"], input[type="email"], input[type="password"] {
+  input[type="text"], input[type="number"], input[type="email"], input[type="password"], input[type="date"] {
     width: 100%;
     background: var(--input-bg);
     color: var(--ink);
@@ -331,6 +331,115 @@
   #cv-spectre { aspect-ratio: 16 / 7; }
   #spc-resultats { display: flex; flex-direction: column; gap: 2px; }
 
+  /* ---------- Mélange de colorants + nuancier ---------- */
+  .col-ligne {
+    display: grid; grid-template-columns: 22px 1fr auto 24px;
+    gap: 8px; align-items: center;
+    padding: 5px 0; border-top: 1px solid var(--hairline);
+  }
+  .col-ligne:first-child { border-top: none; }
+  .col-ligne .sw { width: 22px; height: 22px; }
+  .col-ligne .nom { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .col-ligne .part {
+    font-size: 12px; color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .mel-vide { color: var(--muted); font-size: 12px; margin: 0; }
+  button.actif { border-color: var(--accent); color: var(--accent); }
+  .formule { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--hairline); }
+  .formule table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .formule th, .formule td { text-align: right; padding: 3px 0; }
+  .formule th:first-child, .formule td:first-child { text-align: left; }
+  .formule th {
+    color: var(--muted); font-weight: 600; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .formule td { font-variant-numeric: tabular-nums; }
+  .formule .sw-mini {
+    display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+    margin-right: 6px; vertical-align: -1px; border: 1px solid rgba(0,0,0,.25);
+  }
+
+  #nuancier {
+    position: fixed; inset: 0; z-index: 120;
+    background: rgba(0,0,0,0.55);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .nuancier-carte {
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 10px;
+    padding: 18px 20px; width: 100%; max-width: 620px;
+    max-height: 86vh; overflow: auto;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .nuancier-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .nuancier-tete h2 { margin: 0; }
+  .nuancier-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(28px, 1fr)); gap: 3px; }
+  .nuancier-grille button { padding: 0; aspect-ratio: 1; border-radius: 4px; }
+  .nuancier-roue { display: grid; grid-template-columns: repeat(24, 1fr); gap: 2px; }
+  .nuancier-roue button {
+    padding: 0; aspect-ratio: 1; border: none; border-radius: 2px; cursor: pointer;
+  }
+  .nuancier-grille button:hover, .nuancier-roue button:hover {
+    outline: 2px solid var(--accent); outline-offset: 1px; position: relative; z-index: 1;
+  }
+  .nuancier-roue button.hors { visibility: hidden; }
+
+  /* ---------- Carte d'identité ---------- */
+  .id-grille {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px 14px;
+  }
+  .id-grille label {
+    display: flex; flex-direction: column; gap: 3px;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+  }
+  .id-grille input { font-size: 13px; text-transform: none; letter-spacing: 0; }
+  .onglets { display: flex; gap: 6px; }
+  .essais-liste { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+  .essai {
+    border: 1px solid var(--hairline); border-radius: 8px;
+    padding: 12px 14px;
+    display: grid; grid-template-columns: 1fr 132px; gap: 12px;
+  }
+  @media (max-width: 620px) { .essai { grid-template-columns: 1fr; } }
+  .essai-champs { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .essai-champs .ligne-champs {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px;
+  }
+  .essai-champs label {
+    display: flex; flex-direction: column; gap: 3px;
+    font-size: 11px; color: var(--muted);
+  }
+  .essai-tete { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .essai-tete .num {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .essai-photo { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+  .essai-photo img {
+    width: 100%; aspect-ratio: 1; object-fit: cover;
+    border-radius: 6px; border: 1px solid var(--hairline);
+    cursor: zoom-in; display: block;
+  }
+  .photo-vide {
+    width: 100%; aspect-ratio: 1; border-radius: 6px;
+    border: 1px dashed var(--hairline);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 11px; text-align: center; padding: 6px;
+  }
+  .essai-photo button { padding: 4px 8px; font-size: 11px; }
+  .essais-vide { color: var(--muted); font-size: 13px; margin: 14px 0 0; }
+
+  #photo-plein {
+    position: fixed; inset: 0; z-index: 140;
+    background: rgba(0,0,0,0.85);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px; cursor: zoom-out;
+  }
+  #photo-plein img { max-width: 100%; max-height: 100%; border-radius: 8px; }
+
   /* ---------- Cartes graphiques ---------- */
   main {
     display: grid;
@@ -355,9 +464,8 @@
     overflow: hidden;
   }
   canvas { display: block; width: 100%; height: auto; }
-  #cv-roue, #cv-3d { aspect-ratio: 1; }
+  #cv-roue { aspect-ratio: 1; }
   #cv-lc { aspect-ratio: 10 / 7; }
-  .vues { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
   .note { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
 
   /* ---------- Quasi plein écran ---------- */
@@ -390,7 +498,7 @@
 
 <header>
   <h1>Roue chromatique CIE L*a*b*</h1>
-  <p>Palette en coordonnées Lab — roue a*/b*, solide sRGB 3D, plan luminosité/chroma avec limites de MacAdam.</p>
+  <p>Palette en coordonnées Lab — roue a*/b*, plan luminosité/chroma, mélanges de colorants, spectres d'absorption et carte d'identité.</p>
 </header>
 
 <div class="app">
@@ -400,6 +508,7 @@
       <select id="sel-vue">
         <option value="roue">Roue chromatique</option>
         <option value="spectre">Analyse spectrale</option>
+        <option value="identite">Carte d'identité</option>
       </select>
     </div>
     <details class="bloc" data-vue="roue">
@@ -413,6 +522,31 @@
           <input type="file" id="fichier-excel" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
         </div>
         <p class="note" id="excel-msg" hidden></p>
+      </div>
+    </details>
+    <details class="bloc" id="bloc-melange" data-vue="roue">
+      <summary><h2>Mélange de colorants</h2><span class="badge" id="badge-melange"></span></summary>
+      <div class="bloc-corps">
+        <div id="mel-liste"></div>
+        <div class="actions">
+          <button id="mel-nuancier" title="Choisir un colorant parmi toutes les nuances de la roue">🎨 Nuancier</button>
+          <button id="mel-depuis-palette" title="Reprendre les couleurs de la palette comme colorants">Depuis la palette</button>
+          <button id="mel-vider">Vider</button>
+        </div>
+        <p class="note" id="mel-msg" hidden></p>
+        <div class="actions">
+          <button id="mel-gamme" title="Surligner sur la roue les teintes obtenables par mélange">Afficher la gamme</button>
+        </div>
+
+        <p class="spc-sous-titre">Retrouver une formule</p>
+        <div class="actions" style="margin-top:0">
+          <button id="mel-cibler" title="Cliquer ensuite la teinte voulue sur la roue">🎯 Cibler sur la roue</button>
+          <button id="mel-cible-nuancier">Au nuancier</button>
+        </div>
+        <div class="spc-grille" style="margin-top:8px">
+          <label>Masse totale (g) <input type="number" id="mel-masse" min="0" step="any" value="100"></label>
+        </div>
+        <div id="mel-formule"></div>
       </div>
     </details>
     <details class="bloc" id="bloc-bib" data-vue="roue">
@@ -488,6 +622,22 @@
         </div>
       </div>
     </details>
+    <details class="bloc" id="bloc-identite" data-vue="identite" open hidden>
+      <summary><h2>Carte d'identité</h2><span class="badge" id="badge-identite"></span></summary>
+      <div class="bloc-corps">
+        <p class="spc-sous-titre" style="margin-top:8px">Colorant</p>
+        <div class="spc-ligne-colorant">
+          <select id="id-colorant" aria-label="Colorant"></select>
+          <button id="id-suppr" class="suppr" title="Supprimer ce colorant" aria-label="Supprimer ce colorant">✕</button>
+        </div>
+        <input type="text" id="id-nouveau" placeholder="Nom du nouveau colorant" hidden style="margin-top:6px">
+        <div class="actions" id="id-actions-nouveau" hidden style="margin-top:8px">
+          <button id="id-creer">Créer le colorant</button>
+        </div>
+        <p class="note" id="id-msg" hidden></p>
+        <p class="note" style="margin-top:12px">Les colorants sont partagés avec l'analyse spectrale : un même produit porte ici son identité et ses essais, et là ses spectres.</p>
+      </div>
+    </details>
     <details class="bloc" id="bloc-compte" hidden>
       <summary><h2>Compte</h2></summary>
       <div class="bloc-corps">
@@ -515,23 +665,10 @@
         <div class="outils"><button data-png="cv-roue">PNG ↓</button><button data-plein title="Quasi plein écran">⛶</button></div>
       </div>
       <div class="zone-canvas"><canvas id="cv-roue"></canvas></div>
-      <p class="note">Survoler un point montre son étiquette, un clic la fixe. Glisser un point pour le déplacer, double-clic sur le fond pour en ajouter un. Chaque pixel est la conversion exacte Lab → sRGB à L* constant.</p>
+      <p class="note">Survoler un point montre son étiquette, un clic la fixe. Glisser un point pour le déplacer, double-clic sur le fond pour en ajouter un. Chaque pixel est la conversion exacte Lab → sRGB à L* constant. Les carrés sont les colorants du mélange ; la zone laissée claire est l'ensemble des teintes que leur mélange permet d'atteindre.</p>
     </section>
 
     <section class="card" data-vue="roue">
-      <div class="card-head"><h2>Solide des couleurs sRGB</h2>
-        <div class="outils"><button data-png="cv-3d">PNG ↓</button><button data-plein title="Quasi plein écran">⛶</button></div>
-      </div>
-      <div class="zone-canvas"><canvas id="cv-3d"></canvas></div>
-      <div class="vues">
-        <button id="vue-droite">Remettre droit</button>
-        <button id="vue-dessus">Vue de dessus</button>
-        <button id="vue-face">Vue de face</button>
-      </div>
-      <p class="note">Glisser pour orbiter, cliquer sur un point pour fixer son nom. Le nuage est la surface du cube sRGB projetée dans Lab.</p>
-    </section>
-
-    <section class="card large" data-vue="roue">
       <div class="card-head"><h2>Luminosité / chroma</h2>
         <div class="outils"><button data-png="cv-lc">PNG ↓</button><button data-plein title="Quasi plein écran">⛶</button></div>
       </div>
@@ -547,7 +684,47 @@
       <div class="note" id="spc-resultats"></div>
       <p class="note">A max est le sommet de la courbe ; la largeur de bande est mesurée à mi-hauteur (A max / 2) ; la force colorante compare l'échantillon à la référence : F = A max échantillon / A max référence × 100. La référence est tracée en retrait de l'échantillon.</p>
     </section>
+
+    <section class="card large" data-vue="identite" hidden>
+      <div class="card-head"><h2 id="id-titre">Carte d'identité</h2></div>
+      <div id="id-general"></div>
+    </section>
+
+    <section class="card large" data-vue="identite" hidden>
+      <div class="card-head"><h2>Essais</h2>
+        <div class="outils onglets">
+          <button class="onglet actif" data-onglet="lumiere">Résistance à la lumière</button>
+          <button class="onglet" data-onglet="pvc">Migration PVC</button>
+        </div>
+      </div>
+      <div id="essais-corps"></div>
+    </section>
   </main>
+</div>
+
+<div id="photo-plein" hidden><img id="photo-plein-img" alt="Photo d'essai"></div>
+
+<div id="nuancier" hidden>
+  <div class="nuancier-carte">
+    <div class="nuancier-tete">
+      <h2 id="nuancier-titre">Nuancier</h2>
+      <button id="nuancier-fermer">Fermer</button>
+    </div>
+    <p class="note" id="nuancier-note" style="margin:0"></p>
+    <div id="nuancier-zone-palette" hidden>
+      <p class="spc-sous-titre" style="margin-top:4px">Nuances de la palette</p>
+      <div class="nuancier-grille" id="nuancier-palette"></div>
+    </div>
+    <p class="spc-sous-titre">Toutes les nuances de la roue</p>
+    <div class="reglage">
+      <div class="ligne">
+        <label for="nuancier-l">Luminosité L*</label>
+        <output id="nuancier-out-l">70</output>
+      </div>
+      <input type="range" id="nuancier-l" min="5" max="95" step="5" value="70">
+    </div>
+    <div class="nuancier-roue" id="nuancier-roue"></div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/firebase@12.16.0/firebase-app-compat.js"
@@ -597,6 +774,19 @@ function rgbToHex(rgb) {
 }
 function rgbToCss(rgb) {
   return `rgb(${Math.round(rgb[0] * 255)},${Math.round(rgb[1] * 255)},${Math.round(rgb[2] * 255)})`;
+}
+
+/* labToRgb borne le résultat : cette version dit si la couleur Lab tombait
+   réellement dans le cube sRGB (utile pour n'offrir au nuancier que des
+   nuances affichables). */
+function estEnGamme(L, a, b) {
+  const fy = (L + 16) / 116, fx = fy + a / 500, fz = fy - b / 200;
+  const fi = t => t > DELTA ? t * t * t : 3 * DELTA * DELTA * (t - 4 / 29);
+  const X = D65W[0] * fi(fx), Y = D65W[1] * fi(fy), Z = D65W[2] * fi(fz);
+  const r = 3.2406 * X - 1.5372 * Y - 0.4986 * Z;
+  const g = -0.9689 * X + 1.8758 * Y + 0.0415 * Z;
+  const bb = 0.0557 * X - 0.2040 * Y + 1.0570 * Z;
+  return [r, g, bb].every(c => c >= -0.002 && c <= 1.002);
 }
 
 /* ============ Limite des couleurs visibles (MacAdam, D65) ============ */
@@ -677,8 +867,8 @@ let lFond = 70, cMax = 120;
 const MACADAM = limiteVisible();
 
 /* Survol / épinglage des étiquettes + zones cliquables par canvas. */
-const survol = { roue: -1, lc: -1, td: -1 };
-let hitsRoue = [], hitsLc = [], hits3d = [];
+const survol = { roue: -1, lc: -1 };
+let hitsRoue = [], hitsLc = [];
 let geoRoue = null, geoLc = null;
 
 /* Assainit un point venu d'une source non fiable (JSON importé, compte,
@@ -810,6 +1000,17 @@ function dessinerRoue() {
   ctx.imageSmoothingEnabled = true;
   ctx.drawImage(off, cx - R, cy - R, 2 * R, 2 * R);
 
+  // Gamme des mélanges : tout ce qui n'est pas atteignable est assombri
+  if (melange.gamme && melange.colorants.length) {
+    const voile = voileGamme(360);
+    if (voile) {
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.clip();
+      ctx.drawImage(voile, cx - R, cy - R, 2 * R, 2 * R);
+      ctx.restore();
+    }
+  }
+
   // Croix centrale + cercles de chroma
   ctx.strokeStyle = G.trait; ctx.lineWidth = 1;
   ctx.beginPath();
@@ -858,153 +1059,511 @@ function dessinerRoue() {
     const align = Math.abs(ux) < 0.4 ? 'center' : ux > 0 ? 'left' : 'right';
     pilule(ctx, lx, ly, `${p.nom} · ${rgbToHex(rgb)}`, align);
   });
+
+  // Colorants du mélange : carrés, pour les distinguer des points de palette
+  melange.colorants.forEach(c => {
+    const x = cx + c.a * ech, y = cy - c.b * ech;
+    ctx.beginPath(); ctx.roundRect(x - 8, y - 8, 16, 16, 4);
+    ctx.fillStyle = rgbToCss(labToRgb(c.L, c.a, c.b)); ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = c.L < 50 ? '#FFFFFF' : '#000000';
+    ctx.stroke();
+  });
+
+  // Cible visée et teinte réellement obtenue par la formule
+  if (melange.cible) {
+    const x = cx + melange.cible.a * ech, y = cy - melange.cible.b * ech;
+    const sol = melange.solution;
+    if (sol) {
+      const xo = cx + sol.lab[1] * ech, yo = cy - sol.lab[2] * ech;
+      ctx.beginPath(); ctx.arc(xo, yo, 7, 0, 7);
+      ctx.fillStyle = rgbToCss(labToRgb(sol.lab[0], sol.lab[1], sol.lab[2])); ctx.fill();
+      ctx.setLineDash([2, 2]); ctx.lineWidth = 1.5; ctx.strokeStyle = G.encre;
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(x - 13, y); ctx.lineTo(x - 4, y);
+    ctx.moveTo(x + 4, y); ctx.lineTo(x + 13, y);
+    ctx.moveTo(x, y - 13); ctx.lineTo(x, y - 4);
+    ctx.moveTo(x, y + 4); ctx.lineTo(x, y + 13);
+    ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.stroke();
+    if (sol) {
+      pilule(ctx, x, y - 24, `cible · ΔE*ab ${sol.deltaE.toFixed(1)}`, 'center');
+    }
+  }
+
+  // Légende (le PNG exporté reste autoporteur)
+  const legendes = [];
+  if (melange.gamme && melange.colorants.length) {
+    legendes.push('Zone claire : teintes accessibles par mélange');
+  }
+  if (melange.modeCible) legendes.push('Cliquez la teinte à reproduire');
+  if (legendes.length) {
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    legendes.forEach((t, i) => {
+      ctx.fillStyle = G.encre;
+      ctx.fillText(t, 10, 10 + i * 15);
+    });
+  }
 }
 
-/* ==================== Solide 3D des couleurs sRGB ==================== */
+/* ==================== Mélange de colorants ====================
+   Modèle soustractif de Kubelka-Munk à constante unique, appliqué aux trois
+   canaux sRGB linéaires. K/S = (1−R)²/2R est additif en concentration : c'est
+   ce qui reproduit le comportement réel des colorants (bleu + jaune → vert),
+   là où une interpolation linéaire dans Lab donnerait un gris.
 
-const cv3d = document.getElementById('cv-3d');
-let elev = 22, azim = -55;
-const NUAGE = (() => {
-  const n = 40, pts = [];
-  const faces = [];
-  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
-    const u = i / (n - 1), v = j / (n - 1);
-    faces.push([0, u, v], [1, u, v], [u, 0, v], [u, 1, v], [u, v, 0], [u, v, 1]);
-  }
-  for (const [r, g, b] of faces) {
-    const [L, a, bb] = rgbToLab(r, g, b);
-    pts.push({ a, b: bb, L, css: rgbToCss([r, g, b]) });
-  }
-  return pts;
-})();
+   Un mélange a donc deux degrés de liberté : les proportions entre colorants
+   (le ratio de la formule) et la profondeur de nuance — la concentration
+   totale, prise relativement au colorant tel qu'il a été renseigné (× 1). */
 
-function projecteur(w, h) {
-  const az = azim * Math.PI / 180, el = elev * Math.PI / 180;
-  const cA = Math.cos(az), sA = Math.sin(az), cE = Math.cos(el), sE = Math.sin(el);
-  const s = Math.min(w, h) / 320;
-  const cx = w / 2, cy = h / 2 + 10;
-  return (a, b, L) => {
-    const x1 = a * cA - b * sA;
-    const y1 = a * sA + b * cA;
-    const z = (L - 50) * 1.35;
-    return {
-      x: cx + x1 * s,
-      y: cy - (z * cE - y1 * sE) * s,
-      prof: y1 * cE + z * sE
-    };
+const MEL_MAX = 6;
+/* Profondeurs balayées : de 0,1× à 8× la concentration de référence. */
+const PROFONDEURS = Array.from({ length: 21 }, (_, i) => 0.1 * Math.pow(80, i / 20));
+
+function normaliserNuance(n) {
+  const p = normaliserPoint(n);
+  return { nom: p.nom, L: p.L, a: p.a, b: p.b };
+}
+function normaliserMelange(m) {
+  const o = (m && typeof m === 'object') ? m : {};
+  return {
+    colorants: (Array.isArray(o.colorants) ? o.colorants : []).slice(0, MEL_MAX).map(normaliserNuance),
+    cible: o.cible ? normaliserNuance(o.cible) : null,
+    gamme: !!o.gamme,
+    masse: nombreBorne(o.masse, 0.001, 1e6, 100),
+    modeCible: false,
+    solution: null
   };
 }
+function chargerMelange() {
+  try { return normaliserMelange(JSON.parse(localStorage.getItem('rouelab.melange.v1'))); }
+  catch (e) { return normaliserMelange(null); }
+}
+let melange = chargerMelange();
+function sauverMelange() {
+  try {
+    localStorage.setItem('rouelab.melange.v1', JSON.stringify({
+      colorants: melange.colorants, cible: melange.cible,
+      gamme: melange.gamme, masse: melange.masse
+    }));
+  } catch (e) {}
+}
 
-function dessiner3d() {
-  if (!cv3d.clientWidth) return;               // vue masquée
-  const { ctx, w, h } = prepCanvas(cv3d);
-  ctx.fillStyle = G.fond; ctx.fillRect(0, 0, w, h);
-  const proj = projecteur(w, h);
+/* ---------- Conversions Lab ↔ K/S ---------- */
 
-  // Grille au sol (plan L* = 0) + axe des gris
-  ctx.strokeStyle = '#22222A'; ctx.lineWidth = 1;
-  for (let v = -120; v <= 120; v += 40) {
-    let p1 = proj(v, -120, 0), p2 = proj(v, 120, 0);
-    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
-    p1 = proj(-120, v, 0); p2 = proj(120, v, 0);
-    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+function ksDepuisLab(L, a, b) {
+  const lin = c => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  return labToRgb(L, a, b).map(c => {
+    const R = Math.min(0.9999, Math.max(0.0001, lin(c)));   // bornes : K/S diverge en 0
+    return (1 - R) ** 2 / (2 * R);
+  });
+}
+function labDepuisKs(KS) {
+  const gam = c => c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+  const rgb = KS.map(ks => {
+    const R = 1 + ks - Math.sqrt(ks * ks + 2 * ks);
+    return gam(Math.min(1, Math.max(0, R)));
+  });
+  return rgbToLab(rgb[0], rgb[1], rgb[2]);
+}
+function ksColorants() {
+  return melange.colorants.map(c => ksDepuisLab(c.L, c.a, c.b));
+}
+function labDepuisMelange(ksList, poids, profondeur) {
+  let s = 0;
+  for (const w of poids) s += w;
+  if (!(s > 0)) return [100, 0, 0];
+  const KS = [0, 0, 0];
+  for (let i = 0; i < ksList.length; i++) {
+    const w = poids[i] / s;
+    if (w <= 0) continue;
+    for (let k = 0; k < 3; k++) KS[k] += w * ksList[i][k];
   }
-  const g0 = proj(0, 0, 0), g1 = proj(0, 0, 100);
-  ctx.setLineDash([3, 4]); ctx.strokeStyle = G.encre2;
-  ctx.beginPath(); ctx.moveTo(g0.x, g0.y); ctx.lineTo(g1.x, g1.y); ctx.stroke();
-  ctx.setLineDash([]);
+  return labDepuisKs(KS.map(v => v * profondeur));
+}
+function deltaE76(p, q) { return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); }
 
-  // Étiquettes d'axes
-  ctx.fillStyle = G.encre2; ctx.font = '11px -apple-system, sans-serif';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  const ea = proj(145, 0, 0), eb = proj(0, 145, 0), el2 = proj(0, 0, 112);
-  ctx.fillText('a*', ea.x, ea.y);
-  ctx.fillText('b*', eb.x, eb.y);
-  ctx.fillText('L*', el2.x, el2.y);
+/* ---------- Échantillonnage du simplexe des proportions ---------- */
 
-  // Nuage trié par profondeur (loin -> près), semi-transparent
-  const projete = NUAGE.map(p => ({ ...proj(p.a, p.b, p.L), css: p.css }));
-  projete.sort((u, v) => u.prof - v.prof);
-  ctx.globalAlpha = 0.5;
-  for (const p of projete) {
-    ctx.fillStyle = p.css;
-    ctx.fillRect(p.x - 1.1, p.y - 1.1, 2.2, 2.2);
+/* Pas le plus fin gardant le nombre de combinaisons sous ~600. */
+function pasSimplexe(n) {
+  const combinaisons = p => {
+    let c = 1;
+    for (let i = 1; i <= n - 1; i++) c = c * (p + i) / i;
+    return c;
+  };
+  let p = 48;
+  while (p > 4 && combinaisons(p) > 600) p--;
+  return p;
+}
+function grilleSimplexe(n, pas) {
+  const res = [];
+  const rec = (i, reste, courant) => {
+    if (i === n - 1) { res.push([...courant, reste / pas]); return; }
+    for (let k = 0; k <= reste; k++) rec(i + 1, reste - k, [...courant, k / pas]);
+  };
+  rec(0, pas, []);
+  return res;
+}
+
+/* ---------- Sens inverse : quelle formule reproduit cette teinte ? ----------
+   Balayage grossier (proportions × profondeur) puis descente locale : on
+   transfère du poids d'un colorant vers un autre et on ajuste la profondeur,
+   à pas divisé par deux dès qu'un tour n'améliore plus rien. */
+function resoudreMelange(cible) {
+  const n = melange.colorants.length;
+  if (!n) return null;
+  const ks = ksColorants();
+  const but = [cible.L, cible.a, cible.b];
+  let poids = null, prof = 1, best = Infinity;
+  for (const w of grilleSimplexe(n, pasSimplexe(n))) {
+    for (const t of PROFONDEURS) {
+      const d = deltaE76(labDepuisMelange(ks, w, t), but);
+      if (d < best) { best = d; poids = w; prof = t; }
+    }
   }
-  ctx.globalAlpha = 1;
+  poids = poids.slice();
+  let pas = 0.06, pasT = 0.25;
+  for (let tour = 0; tour < 120; tour++) {
+    let ameliore = false;
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      if (i === j || poids[i] < pas) continue;
+      const essai = poids.slice();
+      essai[i] -= pas; essai[j] += pas;
+      const d = deltaE76(labDepuisMelange(ks, essai, prof), but);
+      if (d < best - 1e-9) { best = d; poids = essai; ameliore = true; }
+    }
+    for (const f of [1 + pasT, 1 / (1 + pasT)]) {
+      const t = Math.min(40, Math.max(0.01, prof * f));
+      const d = deltaE76(labDepuisMelange(ks, poids, t), but);
+      if (d < best - 1e-9) { best = d; prof = t; ameliore = true; }
+    }
+    if (!ameliore) {
+      pas /= 2; pasT /= 2;
+      if (pas < 1e-4) break;
+    }
+  }
+  const somme = poids.reduce((s, v) => s + v, 0);
+  const parts = poids.map(v => v / somme);
+  return { poids: parts, profondeur: prof, lab: labDepuisMelange(ks, parts, prof), deltaE: best };
+}
 
-  // Points de la palette : ligne de rappel + marqueur + nom (si épinglé/survolé)
-  hits3d = [];
-  points.forEach((p, i) => {
-    const rgb = labToRgb(p.L, p.a, p.b);
-    const bas = proj(p.a, p.b, 0), haut = proj(p.a, p.b, p.L);
-    hits3d.push({ x: haut.x, y: haut.y });
-    ctx.setLineDash([1, 3]); ctx.strokeStyle = G.encre2; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(bas.x, bas.y); ctx.lineTo(haut.x, haut.y); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.beginPath(); ctx.arc(bas.x, bas.y, 1.8, 0, 7);
-    ctx.fillStyle = G.encre2; ctx.fill();
+/* ---------- Gamme accessible : voile sombre hors des teintes atteignables ----
+   Pour chaque jeu de proportions on trace la courbe parcourue quand la
+   profondeur varie ; l'union de ces courbes est la zone laissée en clair.
+   C'est une enveloppe approchée (échantillonnage fini), pas une frontière
+   exacte. Mise en cache : ne dépend que des colorants et de cMax. */
+let cacheVoile = null, cacheVoileCle = '';
 
-    const actif = i === survol.td;
-    ctx.beginPath(); ctx.arc(haut.x, haut.y, actif ? 8.5 : 7, 0, 7);
-    ctx.fillStyle = rgbToCss(rgb); ctx.fill();
-    ctx.lineWidth = 1.6; ctx.strokeStyle = p.L < 50 ? '#FFFFFF' : '#000000';
+function voileGamme(res) {
+  const cle = melange.colorants.map(c => `${c.L},${c.a},${c.b}`).join('|') + `#${res}#${cMax}`;
+  if (cacheVoileCle === cle) return cacheVoile;
+  const n = melange.colorants.length;
+  cacheVoileCle = cle;
+  if (!n) { cacheVoile = null; return null; }
+
+  const off = document.createElement('canvas');
+  off.width = off.height = res;
+  const ctx = off.getContext('2d');
+  ctx.fillStyle = 'rgba(10,10,14,0.82)';
+  ctx.fillRect(0, 0, res, res);
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = Math.max(6, res / 36);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+  const ks = ksColorants();
+  const X = a => (a / cMax + 1) / 2 * res;
+  const Y = b => (1 - b / cMax) / 2 * res;
+  for (const w of grilleSimplexe(n, pasSimplexe(n))) {
+    ctx.beginPath();
+    PROFONDEURS.forEach((t, i) => {
+      const lab = labDepuisMelange(ks, w, t);
+      const x = X(lab[1]), y = Y(lab[2]);
+      if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+    });
     ctx.stroke();
+  }
+  cacheVoile = off;
+  return off;
+}
 
-    if (!p.fixe && !actif) return;
-    ctx.font = '11px -apple-system, sans-serif';
-    ctx.fillStyle = G.encre; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-    ctx.strokeStyle = G.fond; ctx.lineWidth = 3;
-    ctx.strokeText(p.nom, haut.x, haut.y - 10);
-    ctx.fillText(p.nom, haut.x, haut.y - 10);
+/* ---------- Panneau ---------- */
+
+const melMsgEl = document.getElementById('mel-msg');
+function messageMel(txt) {
+  melMsgEl.textContent = txt;
+  melMsgEl.hidden = !txt;
+  if (txt) setTimeout(() => { melMsgEl.textContent = ''; melMsgEl.hidden = true; }, 4000);
+}
+
+function majMelange(recalculer) {
+  if (recalculer) {
+    melange.solution = melange.cible && melange.colorants.length
+      ? resoudreMelange(melange.cible) : null;
+  }
+  sauverMelange();
+  rendreMelange();
+  requestAnimationFrame(dessinerRoue);
+}
+
+function rendreMelange() {
+  document.getElementById('badge-melange').textContent = melange.colorants.length || '';
+  const zone = document.getElementById('mel-liste');
+  zone.textContent = '';
+  if (!melange.colorants.length) {
+    const p = document.createElement('p');
+    p.className = 'mel-vide';
+    p.textContent = 'Aucun colorant — ajoutez-en au nuancier ou depuis la palette.';
+    zone.appendChild(p);
+  } else {
+    const sol = melange.solution;
+    melange.colorants.forEach((c, i) => {
+      const ligne = document.createElement('div');
+      ligne.className = 'col-ligne';
+      const sw = document.createElement('span');
+      sw.className = 'sw';
+      sw.style.background = rgbToCss(labToRgb(c.L, c.a, c.b));
+      const nom = document.createElement('span');
+      nom.className = 'nom';
+      nom.textContent = c.nom;
+      nom.title = `L* ${c.L} · a* ${c.a} · b* ${c.b}`;
+      const part = document.createElement('span');
+      part.className = 'part';
+      part.textContent = sol ? `${(sol.poids[i] * 100).toFixed(1)} %` : '';
+      const sup = document.createElement('button');
+      sup.className = 'suppr'; sup.textContent = '✕'; sup.title = 'Retirer ce colorant';
+      armerSuppr(sup, () => { melange.colorants.splice(i, 1); majMelange(true); });
+      ligne.append(sw, nom, part, sup);
+      zone.appendChild(ligne);
+    });
+  }
+  const btnGamme = document.getElementById('mel-gamme');
+  btnGamme.textContent = melange.gamme ? 'Masquer la gamme' : 'Afficher la gamme';
+  btnGamme.classList.toggle('actif', melange.gamme);
+  document.getElementById('mel-cibler').classList.toggle('actif', melange.modeCible);
+  rendreFormule();
+}
+
+function texteFormule() {
+  const sol = melange.solution;
+  if (!sol || !melange.cible) return '';
+  const lignes = [`Formule pour ${melange.cible.nom} (L* ${melange.cible.L} · a* ${melange.cible.a} · b* ${melange.cible.b})`];
+  melange.colorants.forEach((c, i) => {
+    lignes.push(`${c.nom} : ${(sol.poids[i] * 100).toFixed(1)} % — ${(sol.poids[i] * melange.masse).toFixed(2)} g`);
+  });
+  lignes.push(`Masse totale : ${melange.masse} g`);
+  lignes.push(`Profondeur de nuance : × ${sol.profondeur.toFixed(2)}`);
+  lignes.push(`Écart à la cible : ΔE*ab = ${sol.deltaE.toFixed(2)}`);
+  return lignes.join('\n');
+}
+
+function rendreFormule() {
+  const zone = document.getElementById('mel-formule');
+  zone.textContent = '';
+  const p = txt => {
+    const el = document.createElement('p');
+    el.className = 'note'; el.textContent = txt;
+    zone.appendChild(el);
+    return el;
+  };
+  if (!melange.cible) { p('Choisissez une teinte cible pour obtenir la formule.'); return; }
+  if (!melange.colorants.length) { p('Ajoutez au moins un colorant pour calculer la formule.'); return; }
+  const sol = melange.solution;
+  if (!sol) { p('Formule indisponible.'); return; }
+
+  const bloc = document.createElement('div');
+  bloc.className = 'formule';
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  const trh = document.createElement('tr');
+  ['Colorant', 'Part', 'Masse'].forEach(t => {
+    const th = document.createElement('th'); th.textContent = t; trh.appendChild(th);
+  });
+  thead.appendChild(trh);
+  const tbody = document.createElement('tbody');
+  melange.colorants.forEach((c, i) => {
+    const tr = document.createElement('tr');
+    const tdN = document.createElement('td');
+    const sw = document.createElement('span');
+    sw.className = 'sw-mini';
+    sw.style.background = rgbToCss(labToRgb(c.L, c.a, c.b));
+    tdN.append(sw, document.createTextNode(c.nom));
+    const tdP = document.createElement('td');
+    tdP.textContent = `${(sol.poids[i] * 100).toFixed(1)} %`;
+    const tdM = document.createElement('td');
+    tdM.textContent = `${(sol.poids[i] * melange.masse).toFixed(2)} g`;
+    tr.append(tdN, tdP, tdM);
+    tbody.appendChild(tr);
+  });
+  table.append(thead, tbody);
+  bloc.appendChild(table);
+  zone.appendChild(bloc);
+
+  p(`Profondeur de nuance : × ${sol.profondeur.toFixed(2)} (concentration totale rapportée aux colorants tels que renseignés).`);
+  const ecart = p(`Écart à la cible : ΔE*ab = ${sol.deltaE.toFixed(2)} — ${
+    sol.deltaE < 1 ? 'teinte reproduite fidèlement'
+    : sol.deltaE < 3 ? 'écart faible, visible à l’œil exercé'
+    : sol.deltaE < 6 ? 'écart net : la cible est en limite de gamme'
+    : 'cible hors de portée de ces colorants — meilleure approximation'}.`);
+  ecart.style.marginBottom = '8px';
+
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+  actions.style.marginTop = '0';
+  const copier = document.createElement('button');
+  copier.textContent = 'Copier la formule';
+  copier.addEventListener('click', () => {
+    navigator.clipboard.writeText(texteFormule())
+      .then(() => messageMel('Formule copiée.'))
+      .catch(() => messageMel('Copie impossible.'));
+  });
+  const oublier = document.createElement('button');
+  oublier.textContent = 'Effacer la cible';
+  oublier.addEventListener('click', () => {
+    melange.cible = null; melange.solution = null; majMelange(false);
+  });
+  actions.append(copier, oublier);
+  zone.appendChild(actions);
+}
+
+/* ---------- Nuancier ---------- */
+
+const nuancierEl = document.getElementById('nuancier');
+let nuancierMode = 'colorant';           // 'colorant' | 'cible'
+
+function ouvrirNuancier(mode) {
+  nuancierMode = mode;
+  document.getElementById('nuancier-titre').textContent =
+    mode === 'cible' ? 'Nuancier — teinte à reproduire' : 'Nuancier — ajouter un colorant';
+  document.getElementById('nuancier-note').textContent =
+    mode === 'cible'
+      ? 'La nuance choisie devient la cible : la formule est recalculée aussitôt.'
+      : `Choisissez une nuance de la palette ou de la roue (${MEL_MAX} colorants au maximum).`;
+  const slider = document.getElementById('nuancier-l');
+  slider.value = String(Math.min(95, Math.max(5, Math.round(lFond / 5) * 5)));
+  document.getElementById('nuancier-out-l').textContent = slider.value;
+  rendreNuancierPalette();
+  rendreNuancierRoue();
+  nuancierEl.hidden = false;
+}
+function fermerNuancier() { nuancierEl.hidden = true; }
+
+function choisirNuance(n) {
+  if (nuancierMode === 'cible') {
+    melange.cible = normaliserNuance(n);
+  } else {
+    if (melange.colorants.length >= MEL_MAX) { messageMel(`${MEL_MAX} colorants au maximum.`); return; }
+    melange.colorants.push(normaliserNuance(n));
+  }
+  fermerNuancier();
+  majMelange(true);
+}
+
+function rendreNuancierPalette() {
+  const zone = document.getElementById('nuancier-palette');
+  zone.textContent = '';
+  document.getElementById('nuancier-zone-palette').hidden = !points.length;
+  points.forEach(p => {
+    const btn = document.createElement('button');
+    btn.style.background = rgbToCss(labToRgb(p.L, p.a, p.b));
+    btn.title = `${p.nom} — L* ${p.L} · a* ${p.a} · b* ${p.b}`;
+    btn.addEventListener('click', () => choisirNuance({ nom: p.nom, L: p.L, a: p.a, b: p.b }));
+    zone.appendChild(btn);
   });
 }
 
-/* Orbite à la souris / au doigt ; un clic sans mouvement épingle l'étiquette. */
-let glisse = null;
-cv3d.addEventListener('pointerdown', e => {
-  glisse = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY };
-  cv3d.setPointerCapture(e.pointerId);
-});
-cv3d.addEventListener('pointermove', e => {
-  if (!glisse) {
-    const i = plusProche(hits3d, posCanvas(cv3d, e), 12);
-    if (i !== survol.td) { survol.td = i; requestAnimationFrame(dessiner3d); }
-    cv3d.style.cursor = i >= 0 ? 'pointer' : 'grab';
-    return;
+/* Matrice teinte × chroma à la luminosité choisie ; les cases hors du cube
+   sRGB sont laissées vides — la roue ne les affiche pas non plus. */
+function rendreNuancierRoue() {
+  const L = +document.getElementById('nuancier-l').value;
+  const zone = document.getElementById('nuancier-roue');
+  zone.textContent = '';
+  const nH = 24, nC = 9;
+  for (let ic = nC - 1; ic >= 0; ic--) {
+    const C = Math.round(ic * cMax / (nC - 1));
+    for (let h = 0; h < nH; h++) {
+      const deg = h / nH * 360, ang = deg * Math.PI / 180;
+      const a = Math.round(C * Math.cos(ang)), b = Math.round(C * Math.sin(ang));
+      const btn = document.createElement('button');
+      if (!estEnGamme(L, a, b)) {
+        btn.className = 'hors'; btn.disabled = true; zone.appendChild(btn); continue;
+      }
+      btn.style.background = rgbToCss(labToRgb(L, a, b));
+      btn.title = `L* ${L} · a* ${a} · b* ${b} — teinte ${Math.round(deg)}° chroma ${C}`;
+      btn.addEventListener('click', () => choisirNuance({
+        nom: C === 0 ? `Gris L${L}` : `Nuance ${Math.round(deg)}° C${C} L${L}`, L, a, b
+      }));
+      zone.appendChild(btn);
+    }
   }
-  azim += (e.clientX - glisse.x) * 0.4;
-  elev = Math.min(90, Math.max(-10, elev + (e.clientY - glisse.y) * 0.4));
-  glisse.x = e.clientX; glisse.y = e.clientY;
-  requestAnimationFrame(dessiner3d);
-});
-cv3d.addEventListener('pointerup', e => {
-  if (glisse && Math.hypot(e.clientX - glisse.x0, e.clientY - glisse.y0) < 4) {
-    const i = plusProche(hits3d, posCanvas(cv3d, e), 12);
-    if (i >= 0) { points[i].fixe = !points[i].fixe; majTout(false); }
-  }
-  glisse = null;
-});
-cv3d.addEventListener('pointerleave', () => {
-  if (survol.td >= 0) { survol.td = -1; requestAnimationFrame(dessiner3d); }
-});
-cv3d.style.touchAction = 'none';
-cv3d.style.cursor = 'grab';
-
-function allerVue(e2, a2) {
-  const reduit = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (reduit) { elev = e2; azim = a2; dessiner3d(); return; }
-  const e1 = elev, a1 = azim, debut = performance.now(), duree = 400;
-  const pas = t => {
-    const k = Math.min(1, (t - debut) / duree), s = k * k * (3 - 2 * k);
-    elev = e1 + (e2 - e1) * s; azim = a1 + (a2 - a1) * s;
-    dessiner3d();
-    if (k < 1) requestAnimationFrame(pas);
-  };
-  requestAnimationFrame(pas);
 }
-document.getElementById('vue-droite').onclick = () => allerVue(22, -55);
-document.getElementById('vue-dessus').onclick = () => allerVue(90, -90);
-document.getElementById('vue-face').onclick = () => allerVue(0, -90);
+
+document.getElementById('nuancier-fermer').addEventListener('click', fermerNuancier);
+nuancierEl.addEventListener('click', e => { if (e.target === nuancierEl) fermerNuancier(); });
+document.getElementById('nuancier-l').addEventListener('input', () => {
+  document.getElementById('nuancier-out-l').textContent = document.getElementById('nuancier-l').value;
+  rendreNuancierRoue();
+});
+
+/* ---------- Boutons du panneau ---------- */
+
+document.getElementById('mel-nuancier').addEventListener('click', () => ouvrirNuancier('colorant'));
+document.getElementById('mel-cible-nuancier').addEventListener('click', () => ouvrirNuancier('cible'));
+document.getElementById('mel-depuis-palette').addEventListener('click', () => {
+  if (!points.length) { messageMel('La palette est vide.'); return; }
+  let ajoutes = 0;
+  for (const p of points) {
+    if (melange.colorants.length >= MEL_MAX) break;
+    if (melange.colorants.some(c => c.nom === p.nom && c.L === p.L && c.a === p.a && c.b === p.b)) continue;
+    melange.colorants.push(normaliserNuance(p));
+    ajoutes++;
+  }
+  majMelange(true);
+  messageMel(ajoutes
+    ? `${ajoutes} colorant${ajoutes > 1 ? 's' : ''} ajouté${ajoutes > 1 ? 's' : ''}.`
+    : `Rien à ajouter (${MEL_MAX} colorants au maximum).`);
+});
+document.getElementById('mel-vider').addEventListener('click', () => {
+  melange.colorants = []; melange.solution = null; majMelange(false);
+});
+document.getElementById('mel-gamme').addEventListener('click', () => {
+  melange.gamme = !melange.gamme;
+  if (melange.gamme && !melange.colorants.length) {
+    melange.gamme = false;
+    messageMel('Ajoutez d’abord au moins un colorant.');
+  }
+  majMelange(false);
+});
+document.getElementById('mel-cibler').addEventListener('click', () => {
+  if (!melange.colorants.length) { messageMel('Ajoutez d’abord au moins un colorant.'); return; }
+  melange.modeCible = !melange.modeCible;
+  cvRoue.style.cursor = melange.modeCible ? 'crosshair' : '';
+  rendreMelange();
+});
+document.getElementById('mel-masse').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  melange.masse = Number.isFinite(v) && v > 0 ? v : 100;
+  sauverMelange();
+  rendreFormule();
+});
+
+/* Clic sur la roue en mode ciblage : la teinte pointée devient la cible. */
+function cibleDepuisRoue(e) {
+  if (!geoRoue) return;
+  const pos = posCanvas(cvRoue, e);
+  const a = Math.round((pos.x - geoRoue.cx) / geoRoue.ech);
+  const b = Math.round((geoRoue.cy - pos.y) / geoRoue.ech);
+  if (Math.hypot(a, b) > cMax) { messageMel('Cliquez à l’intérieur de la roue.'); return; }
+  melange.cible = { nom: `Cible ${a}/${b}`, L: lFond, a, b };
+  melange.modeCible = false;
+  cvRoue.style.cursor = '';
+  majMelange(true);
+}
+
 
 /* ==================== Plan luminosité / chroma ==================== */
 
@@ -1137,6 +1696,7 @@ function plusProche(hits, pos, rayon = 14) {
 let dragRoue = null;
 cvRoue.style.touchAction = 'none';
 cvRoue.addEventListener('pointerdown', e => {
+  if (melange.modeCible) { cibleDepuisRoue(e); return; }
   const i = plusProche(hitsRoue, posCanvas(cvRoue, e));
   if (i < 0) return;
   dragRoue = { i, bouge: false, x0: e.clientX, y0: e.clientY };
@@ -1154,7 +1714,7 @@ cvRoue.addEventListener('pointermove', e => {
     if (c > cMax) { a *= cMax / c; b *= cMax / c; }
     p.a = Math.round(a); p.b = Math.round(b);
     majTout(false);
-  } else {
+  } else if (!melange.modeCible) {
     const i = plusProche(hitsRoue, pos);
     if (i !== survol.roue) { survol.roue = i; requestAnimationFrame(dessinerRoue); }
     cvRoue.style.cursor = i >= 0 ? 'pointer' : '';
@@ -1169,6 +1729,7 @@ cvRoue.addEventListener('pointerup', () => {
   dragRoue = null;
 });
 cvRoue.addEventListener('dblclick', e => {
+  if (melange.modeCible) return;
   const pos = posCanvas(cvRoue, e);
   if (plusProche(hitsRoue, pos) >= 0) return;
   const a = Math.round((pos.x - geoRoue.cx) / geoRoue.ech);
@@ -1682,6 +2243,13 @@ document.querySelectorAll('[data-plein]').forEach(btn => {
 });
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
+  if (!nuancierEl.hidden) { fermerNuancier(); return; }
+  if (melange.modeCible) {
+    melange.modeCible = false;
+    cvRoue.style.cursor = '';
+    majMelange(false);
+    return;
+  }
   const carte = document.querySelector('.card.plein');
   if (carte) carte.querySelector('[data-plein]').click();
 });
@@ -1718,14 +2286,59 @@ function normaliserMesure(m) {
       .sort((u, v) => u.l - v.l)
   };
 }
+/* Chaîne d'origine non fiable : forcée en chaîne et bornée en longueur. */
+function texteBorne(v, max = 200) {
+  return (typeof v === 'string' ? v : String(v ?? '')).slice(0, max);
+}
+/* Une photo n'est acceptée que sous la forme exacte que produit
+   `photoDepuisFichier` : une image ré-encodée par nos soins en data URL.
+   Tout ce qui ne correspond pas (URL distante, javascript:, SVG…) est jeté. */
+const MAX_OCTETS_PHOTO = 4e6;
+function normaliserPhoto(v) {
+  return typeof v === 'string' && v.length <= MAX_OCTETS_PHOTO &&
+         /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(v) ? v : '';
+}
+/* Date au format d'un <input type="date">, et qui existe réellement au
+   calendrier : « 2026-13-99 » a beau avoir la bonne forme, il est rejeté. */
+function dateBornee(v) {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return '';
+  const d = new Date(`${v}T00:00:00Z`);
+  return Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v ? '' : v;
+}
+function normaliserIdentite(o) {
+  const i = (o && typeof o === 'object') ? o : {};
+  return {
+    reference: texteBorne(i.reference, 120),
+    fournisseur: texteBorne(i.fournisseur, 120),
+    ci: texteBorne(i.ci, 60),
+    lot: texteBorne(i.lot, 60),
+    reception: dateBornee(i.reception)
+  };
+}
+function normaliserEssai(e) {
+  const o = (e && typeof e === 'object') ? e : {};
+  return {
+    date: dateBornee(o.date),
+    nom: texteBorne(o.nom, 120),
+    notation: texteBorne(o.notation, 120),
+    photo: normaliserPhoto(o.photo)
+  };
+}
+const MAX_ESSAIS = 40;
+function normaliserEssais(arr) {
+  return (Array.isArray(arr) ? arr : []).slice(0, MAX_ESSAIS).map(normaliserEssai);
+}
 function normaliserColorants(arr) {
   if (!Array.isArray(arr)) return [];
   return arr.map(c => {
     const o = (c && typeof c === 'object') ? c : {};
+    const es = (o.essais && typeof o.essais === 'object') ? o.essais : {};
     return {
       nom: typeof o.nom === 'string' ? o.nom : String(o.nom ?? 'Colorant'),
       echantillon: normaliserMesure(o.echantillon),
-      reference: normaliserMesure(o.reference)
+      reference: normaliserMesure(o.reference),
+      identite: normaliserIdentite(o.identite),
+      essais: { lumiere: normaliserEssais(es.lumiere), pvc: normaliserEssais(es.pvc) }
     };
   });
 }
@@ -1739,8 +2352,14 @@ function chargerSpectres() {
   } catch (e) { return { colorants: [], actif: 0 }; }
 }
 const spectres = chargerSpectres();
+/* Renvoie false si l'écriture échoue — le quota du navigateur peut être
+   atteint quand des photos d'essai sont enregistrées, et l'utilisateur doit
+   l'apprendre plutôt que de perdre ses données en silence. */
 function sauverSpectres() {
-  try { localStorage.setItem('rouelab.spectres.v1', JSON.stringify(spectres)); } catch (e) {}
+  try {
+    localStorage.setItem('rouelab.spectres.v1', JSON.stringify(spectres));
+    return true;
+  } catch (e) { return false; }
 }
 function colorantActif() { return spectres.colorants[spectres.actif] || null; }
 function concentration(mes) {
@@ -2051,6 +2670,7 @@ function majSpectres() {
   sauverSpectres();
   rendreSpectrePanneau();
   rendreResultatsSpectre();
+  rendreIdentite();
   requestAnimationFrame(dessinerSpectre);
 }
 
@@ -2061,7 +2681,7 @@ selColorant.addEventListener('change', () => {
 });
 document.getElementById('spc-creer').addEventListener('click', () => {
   const nom = inpColorantNouveau.value.trim() || `Colorant ${spectres.colorants.length + 1}`;
-  spectres.colorants.push({ nom, echantillon: normaliserMesure(null), reference: normaliserMesure(null) });
+  spectres.colorants.push(normaliserColorants([{ nom }])[0]);
   spectres.actif = spectres.colorants.length - 1;
   inpColorantNouveau.value = '';
   majSpectres();
@@ -2125,21 +2745,317 @@ fichierSpc.addEventListener('change', async () => {
   }
 });
 
+/* ==================== Carte d'identité du colorant ====================
+   Même registre de colorants que l'analyse spectrale : un produit porte ici
+   son identité (référence, fournisseur, CI, lot, réception) et ses essais,
+   et là ses spectres. Les photos sont ré-encodées et réduites avant d'être
+   stockées, le quota du navigateur étant vite atteint sinon. */
+
+const CHAMPS_ID = [
+  ['reference', 'Référence du colorant', 'text'],
+  ['fournisseur', 'Fournisseur', 'text'],
+  ['ci', 'Color Index (CI)', 'text'],
+  ['lot', 'Numéro de lot', 'text'],
+  ['reception', 'Date de réception', 'date']
+];
+const ONGLETS = {
+  lumiere: { titre: 'Résistance à la lumière', notation: 'Notation / résultat' },
+  pvc: { titre: 'Migration PVC', notation: null }
+};
+let ongletActif = 'lumiere';
+
+const COTE_PHOTO = 1000;                 // px sur le grand côté après réduction
+
+/* Réduit et ré-encode l'image choisie : le passage par un canvas garantit que
+   ce qui est stocké est un JPEG produit ici, jamais le fichier d'origine. */
+function photoDepuisFichier(f) {
+  return new Promise((resolve, reject) => {
+    if (!f.type.startsWith('image/')) { reject(new Error('ce fichier n’est pas une image')); return; }
+    const url = URL.createObjectURL(f);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const k = Math.min(1, COTE_PHOTO / Math.max(img.naturalWidth, img.naturalHeight));
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(img.naturalWidth * k));
+      cv.height = Math.max(1, Math.round(img.naturalHeight * k));
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      resolve(cv.toDataURL('image/jpeg', 0.72));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image illisible')); };
+    img.src = url;
+  });
+}
+
+const idMsgEl = document.getElementById('id-msg');
+function messageIdentite(txt) {
+  idMsgEl.textContent = txt;
+  idMsgEl.hidden = !txt;
+}
+
+const photoInput = document.createElement('input');
+photoInput.type = 'file';
+photoInput.accept = 'image/*';
+photoInput.hidden = true;
+document.body.appendChild(photoInput);
+let photoCible = null;
+
+photoInput.addEventListener('change', async () => {
+  const f = photoInput.files[0];
+  photoInput.value = '';
+  const cible = photoCible;
+  photoCible = null;
+  if (!f || !cible) return;
+  messageIdentite('Traitement de la photo…');
+  try {
+    const data = await photoDepuisFichier(f);
+    const col = colorantActif();
+    const essai = col && col.essais[cible.type][cible.index];
+    if (!essai) { messageIdentite(''); return; }
+    const avant = essai.photo;
+    essai.photo = data;
+    if (sauverSpectres()) {
+      messageIdentite('');
+    } else {
+      essai.photo = avant;                 // rien n'est perdu si le quota lâche
+      sauverSpectres();
+      messageIdentite('Stockage plein : photo non enregistrée. Supprimez des photos existantes.');
+    }
+    rendreEssais();
+  } catch (e) {
+    messageIdentite(`Photo impossible : ${e.message}`);
+  }
+});
+
+const photoPlein = document.getElementById('photo-plein');
+function ouvrirPhoto(src) {
+  document.getElementById('photo-plein-img').src = src;
+  photoPlein.hidden = false;
+}
+photoPlein.addEventListener('click', () => { photoPlein.hidden = true; });
+
+/* ---------- Rendu ---------- */
+
+function majIdentite(sauver) {
+  if (sauver !== false) sauverSpectres();
+  rendreIdentite();
+}
+
+function rendreIdentite() {
+  const col = colorantActif();
+  document.getElementById('badge-identite').textContent =
+    col ? (col.essais.lumiere.length + col.essais.pvc.length) || '' : '';
+
+  const sel = document.getElementById('id-colorant');
+  sel.textContent = '';
+  spectres.colorants.forEach((c, i) => sel.append(new Option(c.nom, i)));
+  sel.append(new Option('➕ Nouveau colorant…', 'nouveau'));
+  sel.value = spectres.colorants.length ? String(spectres.actif) : 'nouveau';
+  const nouveau = sel.value === 'nouveau';
+  document.getElementById('id-nouveau').hidden = !nouveau;
+  document.getElementById('id-actions-nouveau').hidden = !nouveau;
+  document.getElementById('id-suppr').hidden = nouveau;
+
+  document.getElementById('id-titre').textContent =
+    col ? `Carte d'identité — ${col.nom}` : "Carte d'identité";
+  rendreGeneral();
+  rendreEssais();
+}
+
+function rendreGeneral() {
+  const zone = document.getElementById('id-general');
+  zone.textContent = '';
+  const col = colorantActif();
+  if (!col) {
+    const p = document.createElement('p');
+    p.className = 'note';
+    p.textContent = 'Créez ou sélectionnez un colorant dans le panneau de gauche.';
+    zone.appendChild(p);
+    return;
+  }
+  const grille = document.createElement('div');
+  grille.className = 'id-grille';
+  CHAMPS_ID.forEach(([cle, libelle, type]) => {
+    const lab = document.createElement('label');
+    lab.append(document.createTextNode(libelle));
+    const inp = document.createElement('input');
+    inp.type = type;
+    inp.value = col.identite[cle];
+    // Pas de re-rendu à la frappe : le champ garderait le focus mais perdrait
+    // le curseur. On écrit dans le modèle et on enregistre, rien de plus.
+    inp.addEventListener('input', () => {
+      col.identite[cle] = inp.value;
+      sauverSpectres();
+    });
+    lab.appendChild(inp);
+    grille.appendChild(lab);
+  });
+  zone.appendChild(grille);
+}
+
+function rendreEssais() {
+  const zone = document.getElementById('essais-corps');
+  zone.textContent = '';
+  document.querySelectorAll('.onglet').forEach(b =>
+    b.classList.toggle('actif', b.dataset.onglet === ongletActif));
+  const col = colorantActif();
+  if (!col) return;
+
+  const type = ongletActif, def = ONGLETS[type];
+  const liste = col.essais[type];
+
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+  const ajouter = document.createElement('button');
+  ajouter.textContent = '+ Ajouter un essai';
+  ajouter.addEventListener('click', () => {
+    if (liste.length >= MAX_ESSAIS) { messageIdentite(`${MAX_ESSAIS} essais au maximum.`); return; }
+    liste.push(normaliserEssai({
+      date: new Date().toISOString().slice(0, 10),
+      nom: `${def.titre} ${liste.length + 1}`
+    }));
+    majIdentite();
+  });
+  actions.appendChild(ajouter);
+  zone.appendChild(actions);
+
+  if (!liste.length) {
+    const p = document.createElement('p');
+    p.className = 'essais-vide';
+    p.textContent = `Aucun essai de ${def.titre.toLowerCase()} enregistré pour ${col.nom}.`;
+    zone.appendChild(p);
+    return;
+  }
+
+  const conteneur = document.createElement('div');
+  conteneur.className = 'essais-liste';
+  liste.forEach((essai, i) => conteneur.appendChild(carteEssai(essai, i, type, def, liste)));
+  zone.appendChild(conteneur);
+}
+
+function carteEssai(essai, i, type, def, liste) {
+  const carte = document.createElement('div');
+  carte.className = 'essai';
+
+  const champs = document.createElement('div');
+  champs.className = 'essai-champs';
+
+  const tete = document.createElement('div');
+  tete.className = 'essai-tete';
+  const num = document.createElement('span');
+  num.className = 'num';
+  num.textContent = `Essai ${i + 1}`;
+  const sup = document.createElement('button');
+  sup.className = 'suppr'; sup.textContent = '✕'; sup.title = 'Supprimer cet essai';
+  armerSuppr(sup, () => { liste.splice(i, 1); majIdentite(); });
+  tete.append(num, sup);
+  champs.appendChild(tete);
+
+  const ligne = document.createElement('div');
+  ligne.className = 'ligne-champs';
+  const champ = (libelle, cle, typeInput) => {
+    const lab = document.createElement('label');
+    lab.append(document.createTextNode(libelle));
+    const inp = document.createElement('input');
+    inp.type = typeInput;
+    inp.value = essai[cle];
+    inp.addEventListener('input', () => { essai[cle] = inp.value; sauverSpectres(); });
+    lab.appendChild(inp);
+    return lab;
+  };
+  ligne.append(champ('Date de l’essai', 'date', 'date'), champ('Nom de l’essai', 'nom', 'text'));
+  if (def.notation) ligne.appendChild(champ(def.notation, 'notation', 'text'));
+  champs.appendChild(ligne);
+
+  const zonePhoto = document.createElement('div');
+  zonePhoto.className = 'essai-photo';
+  if (essai.photo) {
+    const img = document.createElement('img');
+    img.src = essai.photo;
+    img.alt = `Photo de l’essai ${i + 1}`;
+    img.title = 'Agrandir';
+    img.addEventListener('click', () => ouvrirPhoto(essai.photo));
+    zonePhoto.appendChild(img);
+  } else {
+    const vide = document.createElement('div');
+    vide.className = 'photo-vide';
+    vide.textContent = 'Aucune photo';
+    zonePhoto.appendChild(vide);
+  }
+  const btnPhoto = document.createElement('button');
+  btnPhoto.textContent = essai.photo ? 'Remplacer' : 'Ajouter une photo';
+  btnPhoto.addEventListener('click', () => {
+    photoCible = { type, index: i };
+    photoInput.click();
+  });
+  zonePhoto.appendChild(btnPhoto);
+  if (essai.photo) {
+    const retirer = document.createElement('button');
+    retirer.textContent = 'Retirer la photo';
+    retirer.className = 'danger';
+    retirer.addEventListener('click', () => { essai.photo = ''; majIdentite(); });
+    zonePhoto.appendChild(retirer);
+  }
+
+  carte.append(champs, zonePhoto);
+  return carte;
+}
+
+document.querySelectorAll('.onglet').forEach(btn => {
+  btn.addEventListener('click', () => { ongletActif = btn.dataset.onglet; rendreEssais(); });
+});
+
+document.getElementById('id-colorant').addEventListener('change', e => {
+  if (e.target.value === 'nouveau') {
+    rendreIdentite();
+    document.getElementById('id-nouveau').focus();
+    return;
+  }
+  spectres.actif = +e.target.value;
+  sauverSpectres();
+  rendreIdentite();
+  rendreSpectrePanneau();
+  rendreResultatsSpectre();
+  requestAnimationFrame(dessinerSpectre);
+});
+document.getElementById('id-creer').addEventListener('click', () => {
+  const champ = document.getElementById('id-nouveau');
+  const nom = champ.value.trim() || `Colorant ${spectres.colorants.length + 1}`;
+  spectres.colorants.push(normaliserColorants([{ nom }])[0]);
+  spectres.actif = spectres.colorants.length - 1;
+  champ.value = '';
+  messageIdentite('');
+  majSpectres();
+});
+armerSuppr(document.getElementById('id-suppr'), () => {
+  if (!colorantActif()) return;
+  spectres.colorants.splice(spectres.actif, 1);
+  spectres.actif = Math.max(0, Math.min(spectres.actif, spectres.colorants.length - 1));
+  majSpectres();
+});
+
 /* ==================== Sélecteur d'affichage ==================== */
 
 const selVue = document.getElementById('sel-vue');
+const VUES = ['roue', 'spectre', 'identite'];
+/* `data-vue` peut lister plusieurs vues séparées par une espace. */
 function appliquerVue() {
   const vue = selVue.value;
-  document.querySelectorAll('[data-vue]').forEach(el => { el.hidden = el.dataset.vue !== vue; });
+  document.querySelectorAll('[data-vue]').forEach(el => {
+    el.hidden = !el.dataset.vue.split(/\s+/).includes(vue);
+  });
   try { localStorage.setItem('rouelab.vue', vue); } catch (e) {}
   requestAnimationFrame(redessiner);
 }
 selVue.addEventListener('change', appliquerVue);
-try { if (localStorage.getItem('rouelab.vue') === 'spectre') selVue.value = 'spectre'; } catch (e) {}
+try {
+  const v = localStorage.getItem('rouelab.vue');
+  if (VUES.includes(v)) selVue.value = v;
+} catch (e) {}
 
 /* ==================== Orchestration ==================== */
 
-function redessiner() { dessinerRoue(); dessiner3d(); dessinerLc(); dessinerSpectre(); }
+function redessiner() { dessinerRoue(); dessinerLc(); dessinerSpectre(); }
 
 function majTout(refaireListe) {
   sauverPoints();
@@ -2198,8 +3114,11 @@ document.querySelectorAll('.zone-canvas').forEach(z => observateur.observe(z));
 
 rendreListe();
 rendreBib();
+document.getElementById('mel-masse').value = melange.masse;
+majMelange(true);
 rendreSpectrePanneau();
 rendreResultatsSpectre();
+rendreIdentite();
 appliquerVue();
 redessiner();
 </script>
