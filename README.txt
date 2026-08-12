@@ -7,7 +7,7 @@ LANCEMENT
     pip install -r requirements.txt
     python roue_lab.py
 
-Le script génère 3 images PNG puis ouvre 3 fenêtres (thème sombre).
+Le script génère 2 images PNG puis ouvre 2 fenêtres (thème sombre).
 
 
 CE QU'IL PRODUIT
@@ -19,15 +19,7 @@ CE QU'IL PRODUIT
    (rouge / vert / jaune / bleu) et les points de la palette
    placés dessus.
 
-2. roue_lab_3d.png — Le solide 3D des couleurs sRGB
-   Le volume des couleurs affichables dans l'espace (a*, b*, L*),
-   semi-transparent, avec l'axe des gris en pointillés, les points
-   à leur vraie position 3D et leurs lignes de rappel vers le sol.
-   La fenêtre interactive propose 3 boutons : « Remettre droit »,
-   « Vue de dessus », « Vue de face » (rotation à la souris
-   possible ; les boutons n'apparaissent pas dans le PNG).
-
-3. roue_lab_LC.png — Le plan luminosité / chroma
+2. roue_lab_LC.png — Le plan luminosité / chroma
    Chaque point placé à (C*, L*) avec C* = racine(a*² + b*²).
    Quatre quadrants délimités et nommés (CLAIR / SATURÉ / TERNE /
    PROFOND, seuils à 50), et en fond la limite des couleurs
@@ -47,10 +39,6 @@ matplotlib :
   Conversion CIE Lab -> XYZ -> sRGB (illuminant D65, matrices
   standard, gamma sRGB), vectorisée numpy. Sert à colorier le
   disque 2D et tous les marqueurs.
-
-- rgb_to_lab(rgb)
-  La conversion inverse. Sert à construire le solide 3D (surface
-  du cube sRGB projetée dans Lab).
 
 - rgb_to_hex(rgb)
   Pour les étiquettes.
@@ -87,5 +75,5 @@ EN UNE PHRASE
 -------------
 Un petit atelier colorimétrique autonome : on déclare une palette
 en coordonnées Lab, et il la situe dans l'espace perceptif — sur
-la roue des teintes, dans le volume 3D des couleurs affichables,
-et par rapport aux limites de la vision humaine.
+la roue des teintes et par rapport aux limites de la vision
+humaine.

@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-Roue chromatique CIE L*a*b* — rendus 2D et 3D
-=============================================
+Roue chromatique CIE L*a*b*
+===========================
 
 Génère deux visualisations de l'espace CIE L*a*b* (illuminant D65) :
 
   1. Un disque 2D du plan a*/b*, colorié pixel par pixel via la vraie
      conversion Lab -> sRGB, avec les points de couleur placés dessus.
-  2. Une vue 3D du solide des couleurs sRGB dans l'espace (a*, b*, L*),
-     avec les mêmes points placés à leur vraie position 3D.
+  2. Un plan luminosité / chroma, avec en fond la limite des couleurs
+     visibles par l'oeil (limites de MacAdam).
 
-Sauvegarde roue_lab_2d.png et roue_lab_3d.png, puis affiche les deux.
+Sauvegarde roue_lab_2d.png et roue_lab_LC.png, puis affiche les deux.
 
 Utilisation :
     python roue_lab.py
@@ -21,8 +21,6 @@ Compatible Windows / macOS / Linux (Python 3.8+).
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
-from matplotlib.widgets import Button
-from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 (active la projection 3D)
 
 # ============================================================================
 # RÉGLAGES — modifiez cette section sans toucher au reste du code
@@ -56,7 +54,6 @@ POINTS = [
 
 # Fichiers PNG de sortie.
 FICHIER_2D = "roue_lab_2d.png"
-FICHIER_3D = "roue_lab_3d.png"
 FICHIER_LC = "roue_lab_LC.png"
 
 # --- Thème graphique (sombre : met les couleurs en valeur) ------------------
@@ -123,32 +120,6 @@ def lab_to_rgb(L, a, b):
                    12.92 * rgb_lin,
                    1.055 * np.power(rgb_lin, 1.0 / 2.4) - 0.055)
     return np.clip(rgb, 0.0, 1.0)
-
-
-def rgb_to_lab(rgb):
-    """
-    Convertit sRGB -> CIE L*a*b* (D65). Vectorisée : rgb de forme (..., 3).
-    Utilisée pour construire le solide des couleurs en 3D.
-    """
-    rgb = np.asarray(rgb, dtype=np.float64)
-
-    # --- Décodage gamma sRGB -> RGB linéaire --------------------------------
-    rgb_lin = np.where(rgb <= 0.04045,
-                       rgb / 12.92,
-                       np.power((rgb + 0.055) / 1.055, 2.4))
-
-    # --- RGB linéaire -> XYZ -> Lab -----------------------------------------
-    xyz = rgb_lin @ _RGB_VERS_XYZ.T
-    t = xyz / _D65
-
-    f = np.where(t > _DELTA ** 3,
-                 np.cbrt(t),
-                 t / (3.0 * _DELTA ** 2) + 4.0 / 29.0)
-
-    L = 116.0 * f[..., 1] - 16.0
-    a = 500.0 * (f[..., 0] - f[..., 1])
-    b = 200.0 * (f[..., 1] - f[..., 2])
-    return np.stack([L, a, b], axis=-1)
 
 
 def rgb_to_hex(rgb):
@@ -363,127 +334,6 @@ def tracer_2d():
     return fig
 
 
-# ============================================================================
-# RENDU 3D — solide des couleurs sRGB dans l'espace (a*, b*, L*)
-# ============================================================================
-
-def tracer_3d(n_par_face=90):
-    """
-    Figure 3D : la surface du cube sRGB, convertie en Lab, dessine le
-    « solide des couleurs » (toutes les couleurs affichables). Les points
-    de la liste sont placés à leur vraie position (a*, b*, L*).
-    """
-    # --- Échantillonnage des 6 faces du cube RGB ----------------------------
-    u = np.linspace(0.0, 1.0, n_par_face)
-    uu, vv = np.meshgrid(u, u)
-    uu, vv = uu.ravel(), vv.ravel()
-    z0, z1 = np.zeros_like(uu), np.ones_like(uu)
-
-    faces = np.concatenate([
-        np.stack([z0, uu, vv], axis=-1),  # R = 0
-        np.stack([z1, uu, vv], axis=-1),  # R = 1
-        np.stack([uu, z0, vv], axis=-1),  # G = 0
-        np.stack([uu, z1, vv], axis=-1),  # G = 1
-        np.stack([uu, vv, z0], axis=-1),  # B = 0
-        np.stack([uu, vv, z1], axis=-1),  # B = 1
-    ])
-
-    lab = rgb_to_lab(faces)  # position de chaque couleur dans l'espace Lab
-
-    # --- Mise en place de la scène ------------------------------------------
-    fig = plt.figure(figsize=(11, 10), facecolor=FOND)
-    ax = fig.add_subplot(111, projection="3d")
-    ax.set_facecolor(FOND)
-
-    # Panneaux et grilles discrets, adaptés au thème sombre.
-    for axe in (ax.xaxis, ax.yaxis, ax.zaxis):
-        axe.set_pane_color((0.09, 0.09, 0.11, 1.0))
-        axe._axinfo["grid"].update(color="#2a2a32", linewidth=0.5)
-        axe.label.set_color(ENCRE)
-    ax.tick_params(colors=ENCRE_2, labelsize=8)
-
-    # --- Nuage : la surface du gamut, chaque point de sa propre couleur -----
-    # Semi-transparent : on doit voir les points placés À L'INTÉRIEUR du solide.
-    ax.scatter(lab[:, 1], lab[:, 2], lab[:, 0],
-               c=faces, s=4, alpha=0.4, linewidths=0,
-               depthshade=False, zorder=1)
-
-    # Axe gris neutre (a* = b* = 0), du noir au blanc.
-    ax.plot([0, 0], [0, 0], [0, 100], color=ENCRE_2,
-            linewidth=1.0, linestyle=(0, (3, 3)), zorder=2)
-
-    # --- Points de la liste, à leur vraie position 3D ------------------------
-    for nom, L, a, b in POINTS:
-        couleur = lab_to_rgb(L, a, b)
-        contour = "white" if L < 50 else "black"
-
-        # Ligne de rappel verticale jusqu'au plan L* = 0 : aide à situer
-        # la position (a, b) et la hauteur L* du point dans le volume.
-        ax.plot([a, a], [b, b], [0, L], color=ENCRE_2, linewidth=0.8,
-                linestyle=(0, (1, 3)), alpha=0.8, zorder=9)
-        ax.scatter([a], [b], [0], color=ENCRE_2, s=8, alpha=0.8,
-                   depthshade=False, zorder=9)
-
-        ax.scatter([a], [b], [L], color=couleur.reshape(1, 3), s=140,
-                   edgecolors=contour, linewidths=1.4, depthshade=False,
-                   zorder=10)
-        ax.text(a, b, L + 7, nom, fontsize=8.5, color=ENCRE,
-                ha="center", zorder=11,
-                path_effects=[pe.withStroke(linewidth=2, foreground="#101014")])
-
-    # --- Habillage ----------------------------------------------------------
-    ax.set_xlabel("a*  (vert → rouge)", fontsize=10, labelpad=8)
-    ax.set_ylabel("b*  (bleu → jaune)", fontsize=10, labelpad=8)
-    ax.set_zlabel("L*  (luminosité)", fontsize=10, labelpad=6)
-    ax.set_xlim(-CHROMA_MAX, CHROMA_MAX)
-    ax.set_ylim(-CHROMA_MAX, CHROMA_MAX)
-    ax.set_zlim(0, 100)
-    ax.view_init(elev=VUE_3D_DEFAUT[0], azim=VUE_3D_DEFAUT[1])
-    ax.set_box_aspect((1, 1, 0.85))
-
-    ax.set_title("Solide des couleurs sRGB dans l'espace CIE L*a*b*",
-                 fontsize=15, color=ENCRE, pad=12)
-
-    fig.tight_layout()
-    return fig, ax
-
-
-# Vue 3D par défaut : (élévation, azimut) en degrés.
-VUE_3D_DEFAUT = (22, -55)
-
-
-def ajouter_boutons_vue(fig, ax):
-    """
-    Ajoute des boutons dans la fenêtre 3D pour changer de point de vue :
-      - « Remettre droit » : revient à la vue 3D par défaut
-      - « Vue de dessus »  : plan a*/b* vu du haut (comme la roue 2D)
-      - « Vue de face »    : L* vertical, a* horizontal
-    (La vue reste aussi manipulable librement à la souris.)
-    """
-    vues = [
-        ("Remettre droit", VUE_3D_DEFAUT),
-        ("Vue de dessus", (90, -90)),
-        ("Vue de face", (0, -90)),
-    ]
-
-    boutons = []
-    for i, (label, (elev, azim)) in enumerate(vues):
-        # Petites zones cliquables alignées en bas à gauche de la fenêtre.
-        zone = fig.add_axes([0.03 + i * 0.145, 0.03, 0.13, 0.045])
-        btn = Button(zone, label, color="#22222a", hovercolor="#33333e")
-        btn.label.set_color(ENCRE)
-        btn.label.set_fontsize(9)
-
-        def _appliquer(_event, e=elev, a=azim):
-            ax.view_init(elev=e, azim=a)
-            fig.canvas.draw_idle()
-
-        btn.on_clicked(_appliquer)
-        boutons.append(btn)
-
-    # Garde une référence aux boutons (sinon ils sont ramassés par le GC
-    # et cessent de répondre aux clics).
-    fig._boutons_vue = boutons
 
 
 # ============================================================================
@@ -632,17 +482,9 @@ if __name__ == "__main__":
     fig2d.savefig(FICHIER_2D, dpi=150, facecolor=FOND)
     print(f"Image sauvegardée : {FICHIER_2D}")
 
-    fig3d, ax3d = tracer_3d()
-    fig3d.savefig(FICHIER_3D, dpi=150, facecolor=FOND)
-    print(f"Image sauvegardée : {FICHIER_3D}")
-
-    # Boutons de vue ajoutés APRÈS la sauvegarde : ils apparaissent dans la
-    # fenêtre interactive mais pas dans le PNG.
-    ajouter_boutons_vue(fig3d, ax3d)
-
     figlc = tracer_lc()
     figlc.savefig(FICHIER_LC, dpi=150, facecolor=FOND)
     print(f"Image sauvegardée : {FICHIER_LC}")
 
-    # Affichage à l'écran (trois fenêtres).
+    # Affichage à l'écran (deux fenêtres).
     plt.show()

@@ -234,6 +234,8 @@
     background: #C84A4A; border-color: #C84A4A; color: #FFFFFF;
   }
   button.danger-plein:hover { background: #A93C3C; border-color: #A93C3C; color: #FFFFFF; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button:disabled:hover { border-color: var(--hairline); color: var(--ink); }
   button.suppr {
     padding: 0; width: 24px; height: 24px; line-height: 1;
     font-size: 15px; color: var(--muted); border: none; background: none;
@@ -439,6 +441,35 @@
     padding: 24px; cursor: zoom-out;
   }
   #photo-plein img { max-width: 100%; max-height: 100%; border-radius: 8px; }
+
+  /* ---------- Mesure CCM ---------- */
+  .rapport {
+    font-size: 13px; font-variant-numeric: tabular-nums;
+    display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  }
+  .rapport b { color: var(--accent); font-size: 15px; }
+  .rapport .detail { color: var(--muted); font-size: 11px; }
+  #mesure {
+    position: fixed; inset: 0; z-index: 150;
+    background: rgba(0,0,0,0.72);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .mesure-carte {
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 10px;
+    padding: 16px 18px; width: 100%; max-width: 900px;
+    max-height: 92vh; display: flex; flex-direction: column; gap: 10px;
+  }
+  .mesure-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .mesure-tete h2 { margin: 0; }
+  .mesure-zone {
+    background: var(--canvas-ground); border-radius: 6px;
+    flex: 1; min-height: 0; overflow: hidden;
+  }
+  #cv-mesure { width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+  .mesure-pied { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .mesure-pied .actions { margin-top: 0; }
+  button.seg-h.actif { border-color: #E8A33D; color: #E8A33D; }
+  button.seg-H.actif { border-color: #55C2E8; color: #55C2E8; }
 
   /* ---------- Cartes graphiques ---------- */
   main {
@@ -695,6 +726,7 @@
         <div class="outils onglets">
           <button class="onglet actif" data-onglet="lumiere">Résistance à la lumière</button>
           <button class="onglet" data-onglet="pvc">Migration PVC</button>
+          <button class="onglet" data-onglet="ccm">CCM</button>
         </div>
       </div>
       <div id="essais-corps"></div>
@@ -703,6 +735,25 @@
 </div>
 
 <div id="photo-plein" hidden><img id="photo-plein-img" alt="Photo d'essai"></div>
+
+<div id="mesure" hidden>
+  <div class="mesure-carte">
+    <div class="mesure-tete">
+      <h2>Mesure CCM — <span id="mesure-nom"></span></h2>
+      <button id="mesure-fermer">Fermer</button>
+    </div>
+    <p class="note" style="margin:0">Choisissez h ou H, puis tracez le segment sur la photo en faisant glisser le curseur. Le rapport h/H se calcule dès que les deux sont définis.</p>
+    <div class="mesure-zone"><canvas id="cv-mesure"></canvas></div>
+    <div class="mesure-pied">
+      <div class="actions">
+        <button class="seg-h actif" data-seg="h">Tracer h</button>
+        <button class="seg-H" data-seg="H">Tracer H</button>
+        <button id="mesure-effacer">Effacer les mesures</button>
+      </div>
+      <p class="rapport" id="mesure-resultat" style="margin:0"></p>
+    </div>
+  </div>
+</div>
 
 <div id="nuancier" hidden>
   <div class="nuancier-carte">
@@ -2243,6 +2294,8 @@ document.querySelectorAll('[data-plein]').forEach(btn => {
 });
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
+  if (!mesureEl.hidden) { fermerMesure(); return; }
+  if (!photoPlein.hidden) { photoPlein.hidden = true; return; }
   if (!nuancierEl.hidden) { fermerNuancier(); return; }
   if (melange.modeCible) {
     melange.modeCible = false;
@@ -2315,16 +2368,39 @@ function normaliserIdentite(o) {
     reception: dateBornee(i.reception)
   };
 }
+/* Segment de mesure CCM : deux points en pixels de la photo d'origine. */
+function normaliserSegment(s) {
+  if (!s || typeof s !== 'object') return null;
+  const c = ['x1', 'y1', 'x2', 'y2'].map(k => Number(s[k]));
+  if (!c.every(v => Number.isFinite(v) && v >= 0 && v <= 20000)) return null;
+  if (Math.hypot(c[2] - c[0], c[3] - c[1]) < 1) return null;
+  return { x1: c[0], y1: c[1], x2: c[2], y2: c[3] };
+}
 function normaliserEssai(e) {
   const o = (e && typeof e === 'object') ? e : {};
+  const seg = (o.segments && typeof o.segments === 'object') ? o.segments : {};
   return {
     date: dateBornee(o.date),
     nom: texteBorne(o.nom, 120),
     notation: texteBorne(o.notation, 120),
-    photo: normaliserPhoto(o.photo)
+    photo: normaliserPhoto(o.photo),
+    segments: { h: normaliserSegment(seg.h), H: normaliserSegment(seg.H) }
   };
 }
+
+/* Longueur d'un segment et rapport h/H, en pixels de la photo : les deux
+   mesures portant sur la même image, le rapport est sans unité. */
+function longueurSegment(s) {
+  return s ? Math.hypot(s.x2 - s.x1, s.y2 - s.y1) : 0;
+}
+function rapportCCM(essai) {
+  const h = longueurSegment(essai.segments.h), H = longueurSegment(essai.segments.H);
+  return h > 0 && H > 0 ? h / H : null;
+}
 const MAX_ESSAIS = 40;
+/* Catégories d'essais : source unique, reprise par les onglets (`ONGLETS`).
+   Ajouter une catégorie ici suffit à ce qu'elle soit chargée et enregistrée. */
+const TYPES_ESSAIS = ['lumiere', 'pvc', 'ccm'];
 function normaliserEssais(arr) {
   return (Array.isArray(arr) ? arr : []).slice(0, MAX_ESSAIS).map(normaliserEssai);
 }
@@ -2333,12 +2409,14 @@ function normaliserColorants(arr) {
   return arr.map(c => {
     const o = (c && typeof c === 'object') ? c : {};
     const es = (o.essais && typeof o.essais === 'object') ? o.essais : {};
+    const essais = {};
+    for (const t of TYPES_ESSAIS) essais[t] = normaliserEssais(es[t]);
     return {
       nom: typeof o.nom === 'string' ? o.nom : String(o.nom ?? 'Colorant'),
       echantillon: normaliserMesure(o.echantillon),
       reference: normaliserMesure(o.reference),
       identite: normaliserIdentite(o.identite),
-      essais: { lumiere: normaliserEssais(es.lumiere), pvc: normaliserEssais(es.pvc) }
+      essais
     };
   });
 }
@@ -2760,7 +2838,8 @@ const CHAMPS_ID = [
 ];
 const ONGLETS = {
   lumiere: { titre: 'Résistance à la lumière', notation: 'Notation / résultat' },
-  pvc: { titre: 'Migration PVC', notation: null }
+  pvc: { titre: 'Migration PVC', notation: 'Notation / résultat' },
+  ccm: { titre: 'CCM', notation: null, mesure: true }
 };
 let ongletActif = 'lumiere';
 
@@ -2812,12 +2891,14 @@ photoInput.addEventListener('change', async () => {
     const col = colorantActif();
     const essai = col && col.essais[cible.type][cible.index];
     if (!essai) { messageIdentite(''); return; }
-    const avant = essai.photo;
+    const avant = essai.photo, segAvant = essai.segments;
     essai.photo = data;
+    essai.segments = { h: null, H: null };   // les repères visaient l'ancienne image
     if (sauverSpectres()) {
       messageIdentite('');
     } else {
       essai.photo = avant;                 // rien n'est perdu si le quota lâche
+      essai.segments = segAvant;
       sauverSpectres();
       messageIdentite('Stockage plein : photo non enregistrée. Supprimez des photos existantes.');
     }
@@ -2844,7 +2925,7 @@ function majIdentite(sauver) {
 function rendreIdentite() {
   const col = colorantActif();
   document.getElementById('badge-identite').textContent =
-    col ? (col.essais.lumiere.length + col.essais.pvc.length) || '' : '';
+    col ? TYPES_ESSAIS.reduce((t, k) => t + col.essais[k].length, 0) || '' : '';
 
   const sel = document.getElementById('id-colorant');
   sel.textContent = '';
@@ -2963,9 +3044,45 @@ function carteEssai(essai, i, type, def, liste) {
     lab.appendChild(inp);
     return lab;
   };
-  ligne.append(champ('Date de l’essai', 'date', 'date'), champ('Nom de l’essai', 'nom', 'text'));
+  const libelleAnalyse = def.mesure ? 'l’analyse' : 'l’essai';
+  ligne.append(champ(`Date de ${libelleAnalyse}`, 'date', 'date'),
+               champ(`Nom de ${libelleAnalyse}`, 'nom', 'text'));
   if (def.notation) ligne.appendChild(champ(def.notation, 'notation', 'text'));
   champs.appendChild(ligne);
+
+  if (def.mesure) {
+    const rapport = rapportCCM(essai);
+    const bloc = document.createElement('div');
+    bloc.className = 'rapport';
+    if (rapport !== null) {
+      bloc.append(document.createTextNode('Rapport h / H ='));
+      const val = document.createElement('b');
+      val.textContent = rapport.toFixed(3);
+      const det = document.createElement('span');
+      det.className = 'detail';
+      det.textContent = `h = ${longueurSegment(essai.segments.h).toFixed(0)} px · `
+                      + `H = ${longueurSegment(essai.segments.H).toFixed(0)} px`;
+      bloc.append(val, det);
+    } else {
+      const det = document.createElement('span');
+      det.className = 'detail';
+      det.textContent = essai.photo
+        ? 'Tracez les segments h et H sur la photo pour obtenir le rapport.'
+        : 'Ajoutez une photo pour pouvoir mesurer h et H.';
+      bloc.appendChild(det);
+    }
+    champs.appendChild(bloc);
+
+    const actionsMesure = document.createElement('div');
+    actionsMesure.className = 'actions';
+    actionsMesure.style.marginTop = '0';
+    const btnMesure = document.createElement('button');
+    btnMesure.textContent = rapport !== null ? 'Modifier les mesures' : '📏 Mesurer h et H';
+    btnMesure.disabled = !essai.photo;
+    btnMesure.addEventListener('click', () => ouvrirMesure(essai));
+    actionsMesure.appendChild(btnMesure);
+    champs.appendChild(actionsMesure);
+  }
 
   const zonePhoto = document.createElement('div');
   zonePhoto.className = 'essai-photo';
@@ -2993,13 +3110,173 @@ function carteEssai(essai, i, type, def, liste) {
     const retirer = document.createElement('button');
     retirer.textContent = 'Retirer la photo';
     retirer.className = 'danger';
-    retirer.addEventListener('click', () => { essai.photo = ''; majIdentite(); });
+    retirer.addEventListener('click', () => {
+      essai.photo = '';
+      essai.segments = { h: null, H: null };
+      majIdentite();
+    });
     zonePhoto.appendChild(retirer);
   }
 
   carte.append(champs, zonePhoto);
   return carte;
 }
+
+/* ---------- Outil de mesure CCM ----------
+   Deux segments tracés à la main sur la photo, l'un nommé h, l'autre H.
+   Les extrémités sont mémorisées en pixels de la photo d'origine : le
+   rapport reste donc exact quelle que soit la taille d'affichage. Le
+   calcul se fait dès que les deux segments existent. */
+
+const COUL_SEG = { h: '#E8A33D', H: '#55C2E8' };
+const cvMesure = document.getElementById('cv-mesure');
+const mesureEl = document.getElementById('mesure');
+let mesureEssai = null, mesureImg = null, segActif = 'h', traceEnCours = null, geoMesure = null;
+
+function ouvrirMesure(essai) {
+  if (!essai.photo) return;
+  mesureEssai = essai;
+  document.getElementById('mesure-nom').textContent = essai.nom || 'analyse';
+  mesureEl.hidden = false;
+  const img = new Image();
+  img.onload = () => { mesureImg = img; dessinerMesure(); majResultatMesure(); };
+  img.onerror = () => { mesureImg = null; };
+  img.src = essai.photo;
+}
+function fermerMesure() {
+  mesureEl.hidden = true;
+  mesureEssai = null; mesureImg = null; traceEnCours = null;
+  rendreEssais();
+}
+
+function dessinerMesure() {
+  if (!mesureImg || !mesureEssai || !cvMesure.clientWidth) return;
+  const { ctx, w, h } = prepCanvas(cvMesure);
+  ctx.fillStyle = G.fond; ctx.fillRect(0, 0, w, h);
+  const iw = mesureImg.naturalWidth, ih = mesureImg.naturalHeight;
+  const k = Math.min(w / iw, h / ih);
+  const ox = (w - iw * k) / 2, oy = (h - ih * k) / 2;
+  geoMesure = { k, ox, oy };
+  ctx.drawImage(mesureImg, ox, oy, iw * k, ih * k);
+
+  /* Dessiné comme une cote : la ligne est décalée latéralement et reliée aux
+     points mesurés par des lignes d'attache. Sur une plaque CCM h et H partent
+     du même dépôt — sans ce décalage, h disparaîtrait sous H. */
+  const tracer = (s, nom, provisoire) => {
+    if (!s) return;
+    const x1 = ox + s.x1 * k, y1 = oy + s.y1 * k;
+    const x2 = ox + s.x2 * k, y2 = oy + s.y2 * k;
+    const ang = Math.atan2(y2 - y1, x2 - x1);
+    const ux = Math.sin(ang), uy = -Math.cos(ang);      // perpendiculaire unitaire
+    const d = nom === 'h' ? -9 : 9;
+    const dx = ux * d, dy = uy * d;
+    ctx.strokeStyle = COUL_SEG[nom];
+    ctx.lineCap = 'round';
+
+    ctx.globalAlpha = provisoire ? 0.5 : 0.55;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1); ctx.lineTo(x1 + dx * 1.7, y1 + dy * 1.7);
+    ctx.moveTo(x2, y2); ctx.lineTo(x2 + dx * 1.7, y2 + dy * 1.7);
+    ctx.stroke();
+
+    ctx.globalAlpha = provisoire ? 0.75 : 1;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(x1 + dx, y1 + dy); ctx.lineTo(x2 + dx, y2 + dy);
+    ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x1 + dx - ux * 5, y1 + dy - uy * 5); ctx.lineTo(x1 + dx + ux * 5, y1 + dy + uy * 5);
+    ctx.moveTo(x2 + dx - ux * 5, y2 + dy - uy * 5); ctx.lineTo(x2 + dx + ux * 5, y2 + dy + uy * 5);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    pilule(ctx, (x1 + x2) / 2 + dx * 2.6, (y1 + y2) / 2 + dy * 2.6, nom, 'center');
+  };
+  tracer(mesureEssai.segments.h, 'h');
+  tracer(mesureEssai.segments.H, 'H');
+  if (traceEnCours) tracer(traceEnCours, segActif, true);
+}
+
+function majResultatMesure() {
+  const zone = document.getElementById('mesure-resultat');
+  zone.textContent = '';
+  if (!mesureEssai) return;
+  const lh = longueurSegment(mesureEssai.segments.h);
+  const lH = longueurSegment(mesureEssai.segments.H);
+  const r = rapportCCM(mesureEssai);
+  if (r === null) {
+    const s = document.createElement('span');
+    s.className = 'detail';
+    s.textContent = (lh > 0 || lH > 0)
+      ? `Tracez maintenant ${lh > 0 ? 'H' : 'h'} pour obtenir le rapport.`
+      : 'Aucune mesure tracée.';
+    zone.appendChild(s);
+    return;
+  }
+  const val = document.createElement('b');
+  val.textContent = r.toFixed(3);
+  const det = document.createElement('span');
+  det.className = 'detail';
+  det.textContent = `(h = ${lh.toFixed(0)} px, H = ${lH.toFixed(0)} px)`;
+  zone.append(document.createTextNode('h / H ='), val, det);
+}
+
+function posImageMesure(e) {
+  const r = cvMesure.getBoundingClientRect();
+  const x = (e.clientX - r.left - geoMesure.ox) / geoMesure.k;
+  const y = (e.clientY - r.top - geoMesure.oy) / geoMesure.k;
+  return {
+    x: Math.min(mesureImg.naturalWidth, Math.max(0, x)),
+    y: Math.min(mesureImg.naturalHeight, Math.max(0, y))
+  };
+}
+cvMesure.addEventListener('pointerdown', e => {
+  if (!mesureImg || !geoMesure) return;
+  const p = posImageMesure(e);
+  traceEnCours = { x1: p.x, y1: p.y, x2: p.x, y2: p.y };
+  cvMesure.setPointerCapture(e.pointerId);
+  dessinerMesure();
+});
+cvMesure.addEventListener('pointermove', e => {
+  if (!traceEnCours) return;
+  const p = posImageMesure(e);
+  traceEnCours.x2 = p.x; traceEnCours.y2 = p.y;
+  dessinerMesure();
+});
+cvMesure.addEventListener('pointerup', () => {
+  if (!traceEnCours) return;
+  const seg = normaliserSegment(traceEnCours);
+  traceEnCours = null;
+  if (seg && mesureEssai) {
+    mesureEssai.segments[segActif] = seg;
+    sauverSpectres();
+    // Enchaînement naturel : après h on propose H, et inversement.
+    const suivant = segActif === 'h' ? 'H' : 'h';
+    if (!mesureEssai.segments[suivant]) choisirSegment(suivant);
+  }
+  dessinerMesure();
+  majResultatMesure();
+});
+
+function choisirSegment(nom) {
+  segActif = nom;
+  document.querySelectorAll('#mesure [data-seg]').forEach(b =>
+    b.classList.toggle('actif', b.dataset.seg === nom));
+}
+document.querySelectorAll('#mesure [data-seg]').forEach(b =>
+  b.addEventListener('click', () => choisirSegment(b.dataset.seg)));
+document.getElementById('mesure-effacer').addEventListener('click', () => {
+  if (!mesureEssai) return;
+  mesureEssai.segments = { h: null, H: null };
+  sauverSpectres();
+  choisirSegment('h');
+  dessinerMesure();
+  majResultatMesure();
+});
+document.getElementById('mesure-fermer').addEventListener('click', fermerMesure);
+new ResizeObserver(() => requestAnimationFrame(dessinerMesure))
+  .observe(document.querySelector('.mesure-zone'));
 
 document.querySelectorAll('.onglet').forEach(btn => {
   btn.addEventListener('click', () => { ongletActif = btn.dataset.onglet; rendreEssais(); });
