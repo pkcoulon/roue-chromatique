@@ -1104,6 +1104,9 @@
       <div class="jauge"><i id="jauge-etude"></i></div>
     </div>
     <p class="note" id="etat-sync" role="status"></p>
+    <div class="actions" id="zone-conflit">
+      <button id="btn-forcer-sync" class="danger" hidden>Écraser avec ce poste</button>
+    </div>
     <p class="note">Le travail en cours est repoussé sur votre compte quelques secondes après chaque modification — pas seulement à l'enregistrement. Les photos d'essai pèsent lourd dans les deux jauges : un document est plafonné à 1 Mio.</p>
   </div>
 </div>
@@ -3240,6 +3243,10 @@ async function supprimerEtudeCloud(id) {
 const DOC_COURANT = 'courant';
 let minuterieCourant = null;
 let dernierPousseCourant = '';
+/* Dernier `maj` que ce poste a lu ou écrit sur le compte. Sert à détecter
+   qu'un autre poste a écrit entre-temps. */
+let majConnue = '';
+let forcerProchainePoussee = false;
 /* L'initialisation appelle les fonctions de sauvegarde : sans ce garde, un
    navigateur vierge daterait son état vide de « maintenant » et l'écraserait
    sur le travail du compte à la première connexion. */
@@ -3250,6 +3257,48 @@ function marquerMaj() {
 }
 function majLocale() {
   try { return localStorage.getItem('rouelab.maj') || ''; } catch (e) { return ''; }
+}
+/* Le compte auquel appartient l'état local. Deux comptes sur le même
+   navigateur ne doivent jamais se déverser l'un dans l'autre. */
+function proprietaireLocal() {
+  try { return localStorage.getItem('rouelab.uid') || ''; } catch (e) { return ''; }
+}
+function marquerProprietaire(uid) {
+  try { localStorage.setItem('rouelab.uid', uid); } catch (e) {}
+}
+
+/* Décision de réconciliation, isolée du réseau pour être vérifiable seule.
+   - état local appartenant à un autre compte : il ne remonte jamais ici ;
+   - sinon la version la plus récente gagne (les dates ISO s'ordonnent comme
+     des chaînes). */
+function deciderSync({ existeDistant, majDistante, majLocale, proprioLocal, uid }) {
+  if (proprioLocal && proprioLocal !== uid) return existeDistant ? 'adopter' : 'vider';
+  if (existeDistant && majDistante && majDistante > majLocale) return 'adopter';
+  return 'pousser';
+}
+
+/* Écriture conditionnelle : si le document porte un `maj` que ce poste n'a
+   pas vu, c'est qu'un autre poste a travaillé depuis. On refuse d'écraser en
+   silence — l'utilisateur tranche. */
+async function ecrireCourant(etude, forcer) {
+  const ref = refEtudes().doc(DOC_COURANT);
+  const maj = majLocale();
+  await fbDb.runTransaction(async tx => {
+    const snap = await tx.get(ref);
+    const majServeur = snap.exists && typeof snap.data().maj === 'string' ? snap.data().maj : '';
+    if (!forcer && majServeur && majServeur !== majConnue) {
+      const err = new Error('modifié sur un autre poste');
+      err.conflit = true;
+      throw err;
+    }
+    tx.set(ref, { ...etude, maj });
+  });
+  majConnue = maj;
+}
+
+function montrerConflit(actif) {
+  const b = document.getElementById('btn-forcer-sync');
+  if (b) b.hidden = !actif;
 }
 
 function planifierPousseCourant() {
@@ -3262,18 +3311,28 @@ function planifierPousseCourant() {
   minuterieCourant = setTimeout(async () => {
     const etude = etudeCourante();
     const charge = JSON.stringify(etude);
-    if (charge === dernierPousseCourant) { etatSync('à jour sur le compte'); return; }
+    if (charge === dernierPousseCourant && !forcerProchainePoussee) {
+      etatSync('à jour sur le compte');
+      return;
+    }
     const octets = new Blob([charge]).size;
     if (octets > MAX_ETUDE) {
       etatSync(`travail trop lourd (${fmtOctets(octets)}) — non synchronisé, retirez des photos`);
       return;
     }
     try {
-      await refEtudes().doc(DOC_COURANT).set({ ...etude, maj: majLocale() });
+      await ecrireCourant(etude, forcerProchainePoussee);
+      forcerProchainePoussee = false;
       dernierPousseCourant = charge;
+      montrerConflit(false);
       etatSync('à jour sur le compte');
     } catch (e) {
-      etatSync(`synchronisation impossible : ${e.message}`);
+      if (e.conflit) {
+        montrerConflit(true);
+        etatSync('modifié sur un autre poste — rechargez la page pour reprendre le travail à jour, ou écrasez avec ce poste.');
+      } else {
+        etatSync(`synchronisation impossible : ${e.message}`);
+      }
     }
   }, 3000);
 }
@@ -3287,18 +3346,37 @@ async function reprendreCourant() {
     etatSync(`lecture du travail en cours impossible : ${e.message}`);
     return;
   }
-  if (!doc.exists) { planifierPousseCourant(); return; }
-  const distant = doc.data();
-  const majDistante = typeof distant.maj === 'string' ? distant.maj : '';
-  // Les dates ISO se comparent comme des chaînes : l'ordre est chronologique.
-  if (majDistante && majDistante > majLocale()) {
+  const distant = doc.exists ? doc.data() : null;
+  const majDistante = distant && typeof distant.maj === 'string' ? distant.maj : '';
+  // Connu dans tous les cas : sans ça, la première écriture après connexion
+  // se croirait en conflit avec un document qu'on vient pourtant de lire.
+  majConnue = majDistante;
+
+  const decision = deciderSync({
+    existeDistant: !!distant,
+    majDistante,
+    majLocale: majLocale(),
+    proprioLocal: proprietaireLocal(),
+    uid: utilisateur.uid
+  });
+
+  if (decision === 'adopter') {
     appliquerEtude(distant);
     try { localStorage.setItem('rouelab.maj', majDistante); } catch (e) {}
     dernierPousseCourant = JSON.stringify(etudeCourante());
+    marquerProprietaire(utilisateur.uid);
     etatSync(`travail repris du compte (${majDistante.slice(0, 16).replace('T', ' à ')})`);
-  } else {
-    planifierPousseCourant();
+    majQuotas();
+    return;
   }
+  if (decision === 'vider') {
+    // L'état local est celui d'un autre compte et il n'y a rien à reprendre :
+    // on repart d'une page blanche plutôt que de le verser ici.
+    appliquerEtude({});
+    etatSync('nouveau compte — travail vierge');
+  }
+  marquerProprietaire(utilisateur.uid);
+  planifierPousseCourant();
 }
 
 /* ==================== Quotas ====================
@@ -3307,7 +3385,8 @@ async function reprendreCourant() {
    (1 Mio par étude). */
 
 const CLES_LOCALES = ['rouelab.points.v1', 'rouelab.spectres.v1', 'rouelab.melange.v1',
-                      'rouelab.vue', 'rouelab.theme', 'rouelab.asideW', 'rouelab.maj'];
+                      'rouelab.vue', 'rouelab.theme', 'rouelab.asideW',
+                      'rouelab.maj', 'rouelab.uid'];
 const PLAFOND_LOCAL = 5 * 1024 * 1024;
 
 function fmtOctets(n) {
@@ -4578,6 +4657,11 @@ redessiner();
    compte. */
 pretPourSync = true;
 majQuotas();
+document.getElementById('btn-forcer-sync').addEventListener('click', () => {
+  forcerProchainePoussee = true;
+  montrerConflit(false);
+  planifierPousseCourant();
+});
 etatSync(utilisateur ? 'à jour sur le compte' : 'hors compte — rien n’est sauvegardé');
 </script>
 
