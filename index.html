@@ -3475,7 +3475,16 @@ async function reprendreCourant() {
   });
 
   if (decision === 'adopter') {
-    appliquerEtude(distant);
+    // Garde-fou : un document distant qui se réduit à rien alors qu'il y a du
+    // travail ici est un accident (écriture partielle, format inattendu), pas
+    // une intention. On ne l'applique pas — perdre le local serait irréparable,
+    // le signaler ne coûte rien.
+    const reprise = normaliserEtude(distant);
+    if (!reprise.points.length && points.length) {
+      etatSync('travail du compte illisible ou vide — état local conservé');
+      return;
+    }
+    appliquerEtude(reprise);
     try { localStorage.setItem('rouelab.maj', majDistante); } catch (e) {}
     dernierPousseCourant = JSON.stringify(etudeCourante());
     marquerProprietaire(utilisateur.uid);
