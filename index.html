@@ -1098,7 +1098,7 @@
     </div>
     <div class="reglage">
       <div class="ligne">
-        <label>Travail en cours</label>
+        <label>Document d'étude</label>
         <output id="out-etude"></output>
       </div>
       <div class="jauge"><i id="jauge-etude"></i></div>
@@ -1107,7 +1107,7 @@
     <div class="actions" id="zone-conflit">
       <button id="btn-forcer-sync" class="danger" hidden>Écraser avec ce poste</button>
     </div>
-    <p class="note">Le travail en cours est repoussé sur votre compte quelques secondes après chaque modification — pas seulement à l'enregistrement. Les photos d'essai pèsent lourd dans les deux jauges : un document est plafonné à 1 Mio.</p>
+    <p class="note">Le travail en cours est repoussé sur votre compte quelques secondes après chaque modification — pas seulement à l'enregistrement. Les photos d'essai sont stockées à part, un document chacune : elles pèsent sur le navigateur, plus sur le plafond de 1 Mio du document d'étude.</p>
   </div>
 </div>
 
@@ -3088,7 +3088,9 @@ function initCompte() {
         `Connecté : ${user.email}. Bibliothèque enregistrée sur le compte.`;
     }
     if (user && !avant) chargerCloud();
-    if (!user) { bib.dossiers = []; rendreBib(); }
+    // `avant` : seule une vraie déconnexion vide, pas le premier chargement
+    // sans session — sinon ouvrir l'application hors compte effacerait tout.
+    if (!user) { bib.dossiers = []; rendreBib(); if (avant) oublierTravailLocal(); }
   });
   document.getElementById('porte-connexion').addEventListener('click', connexionCompte);
   document.getElementById('porte-mdp').addEventListener('keydown', e => {
@@ -3201,13 +3203,97 @@ function refEtudes() {
   return fbDb.collection('bibliotheques').doc(utilisateur.uid).collection('etudes');
 }
 
+/* ---------- Photos : un document chacune ----------
+   Un document Firestore est plafonné à 1 Mio et une photo d'essai pèse 100 à
+   200 Ko : une quinzaine suffirait à saturer une étude. Les photos sortent
+   donc du document d'étude et deviennent des documents voisins, dans la même
+   collection `etudes` — donc couverts par la règle déjà publiée, sans rien à
+   changer côté serveur.
+
+   Elles sont adressées par leur contenu (empreinte SHA-256) : la même photo
+   n'est jamais écrite deux fois, et réenregistrer une étude n'en réécrit
+   aucune. En contrepartie une photo n'est jamais supprimée — plusieurs études
+   peuvent référencer la même. À 150 Ko pièce, le Go du forfait en tient des
+   milliers. */
+
+const photosEcrites = new Set();
+const RE_REF_PHOTO = /^p[0-9a-f]{8,48}$/;
+
+async function empreintePhoto(data) {
+  const somme = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data));
+  return 'p' + [...new Uint8Array(somme)].slice(0, 12)
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/* Parcourt les essais d'une structure d'étude, quelle qu'en soit la
+   provenance : un même chemin sert au détachement et au rattachement. */
+function* essaisDe(doc) {
+  for (const c of (Array.isArray(doc && doc.colorants) ? doc.colorants : [])) {
+    const es = (c && c.essais) || {};
+    for (const t of TYPES_ESSAIS) {
+      for (const essai of (Array.isArray(es[t]) ? es[t] : [])) {
+        if (essai && typeof essai === 'object') yield essai;
+      }
+    }
+  }
+}
+
+async function detacherPhotos(etude) {
+  const doc = JSON.parse(JSON.stringify(etude));
+  const photos = new Map();
+  for (const essai of essaisDe(doc)) {
+    if (!essai.photo) continue;
+    const ref = await empreintePhoto(essai.photo);
+    photos.set(ref, essai.photo);
+    essai.photoRef = ref;
+    essai.photo = '';
+  }
+  return { doc, photos };
+}
+
+/* Une photo introuvable laisse son essai sans image plutôt que de faire
+   échouer le chargement de toute l'étude. */
+async function rattacherPhotos(doc) {
+  const refs = new Set();
+  for (const essai of essaisDe(doc)) {
+    if (typeof essai.photoRef === 'string' && RE_REF_PHOTO.test(essai.photoRef)) refs.add(essai.photoRef);
+  }
+  if (!refs.size) return doc;
+  const trouvees = new Map();
+  await Promise.all([...refs].map(async ref => {
+    try {
+      const snap = await refEtudes().doc(ref).get();
+      const d = snap.exists ? snap.data() : null;
+      if (d && typeof d.data === 'string') { trouvees.set(ref, d.data); photosEcrites.add(ref); }
+    } catch (e) { /* photo illisible : l'essai restera sans image */ }
+  }));
+  for (const essai of essaisDe(doc)) {
+    if (essai.photoRef && trouvees.has(essai.photoRef)) essai.photo = trouvees.get(essai.photoRef);
+  }
+  return doc;
+}
+
+async function ecrirePhotos(photos) {
+  for (const [ref, data] of photos) {
+    if (photosEcrites.has(ref)) continue;
+    const octets = new Blob([data]).size;
+    if (octets > MAX_ETUDE) {
+      throw new Error(`une photo dépasse la taille d\u2019un document (${fmtOctets(octets)})`);
+    }
+    await refEtudes().doc(ref).set({ data, type: 'photo' });
+    photosEcrites.add(ref);
+  }
+}
+
 async function ecrireEtudeCloud(id, etude) {
   if (!fbDb || !utilisateur) throw new Error('compte non connecté');
-  const octets = new Blob([JSON.stringify(etude)]).size;
+  const { doc, photos } = await detacherPhotos(etude);
+  await ecrirePhotos(photos);
+  const octets = new Blob([JSON.stringify(doc)]).size;
   if (octets > MAX_ETUDE) {
-    throw new Error(`étude trop lourde (${Math.round(octets / 1024)} Ko) — un document est limité à 1 Mio, retirez des photos d’essai`);
+    throw new Error(`étude trop lourde (${fmtOctets(octets)}) hors photos — un document est limité à 1 Mio`);
   }
-  await refEtudes().doc(id).set({ ...etude, maj: new Date().toISOString() });
+  await refEtudes().doc(id).set({ ...doc, maj: new Date().toISOString() });
 }
 
 async function lireEtudeCloud(id) {
@@ -3215,7 +3301,7 @@ async function lireEtudeCloud(id) {
   if (!id) throw new Error('étude sans identifiant');
   const doc = await refEtudes().doc(id).get();
   if (!doc.exists) throw new Error('étude introuvable sur le compte');
-  return doc.data();
+  return await rattacherPhotos(doc.data());
 }
 
 /* L'index a déjà été mis à jour : l'échec de la suppression du document ne
@@ -3283,6 +3369,10 @@ function deciderSync({ existeDistant, majDistante, majLocale, proprioLocal, uid 
 async function ecrireCourant(etude, forcer) {
   const ref = refEtudes().doc(DOC_COURANT);
   const maj = majLocale();
+  // Les photos partent avant, hors transaction : elles sont adressées par leur
+  // contenu, donc réécrire la même est sans effet et sans risque.
+  const { doc: sansPhotos, photos } = await detacherPhotos(etude);
+  await ecrirePhotos(photos);
   await fbDb.runTransaction(async tx => {
     const snap = await tx.get(ref);
     const majServeur = snap.exists && typeof snap.data().maj === 'string' ? snap.data().maj : '';
@@ -3291,7 +3381,7 @@ async function ecrireCourant(etude, forcer) {
       err.conflit = true;
       throw err;
     }
-    tx.set(ref, { ...etude, maj });
+    tx.set(ref, { ...sansPhotos, maj });
   });
   majConnue = maj;
 }
@@ -3315,9 +3405,9 @@ function planifierPousseCourant() {
       etatSync('à jour sur le compte');
       return;
     }
-    const octets = new Blob([charge]).size;
+    const octets = tailleDocEtude();
     if (octets > MAX_ETUDE) {
-      etatSync(`travail trop lourd (${fmtOctets(octets)}) — non synchronisé, retirez des photos`);
+      etatSync(`travail trop lourd (${fmtOctets(octets)}) hors photos — non synchronisé`);
       return;
     }
     try {
@@ -3337,6 +3427,30 @@ function planifierPousseCourant() {
   }, 3000);
 }
 
+/* À la déconnexion, l'état de travail ne reste pas dans le navigateur. Le
+   compte est ce qui recense tout ; le navigateur n'en est qu'un miroir. Sur un
+   poste partagé, la palette, les fiches et les photos d'un compte n'ont rien à
+   faire là une fois la session close — et tout est déjà sur le compte, poussé
+   au fil de l'eau. */
+function oublierTravailLocal() {
+  clearTimeout(minuterieCourant);
+  dernierPousseCourant = '';
+  majConnue = '';
+  forcerProchainePoussee = false;
+  montrerConflit(false);
+  // Le vidage ne doit ni se dater ni remonter : il n'est pas un travail.
+  const etait = pretPourSync;
+  pretPourSync = false;
+  appliquerEtude({});
+  for (const cle of CLES_TRAVAIL) {
+    try { localStorage.removeItem(cle); } catch (e) { /* clé absente */ }
+  }
+  pretPourSync = etait;
+  photosEcrites.clear();
+  majQuotas();
+  etatSync('déconnecté — le travail est sur le compte');
+}
+
 async function reprendreCourant() {
   if (!fbDb || !utilisateur) return;
   let doc;
@@ -3346,7 +3460,7 @@ async function reprendreCourant() {
     etatSync(`lecture du travail en cours impossible : ${e.message}`);
     return;
   }
-  const distant = doc.exists ? doc.data() : null;
+  const distant = doc.exists ? await rattacherPhotos(doc.data()) : null;
   const majDistante = distant && typeof distant.maj === 'string' ? distant.maj : '';
   // Connu dans tous les cas : sans ça, la première écriture après connexion
   // se croirait en conflit avec un document qu'on vient pourtant de lire.
@@ -3384,9 +3498,11 @@ async function reprendreCourant() {
    le stockage du navigateur (~5 Mo pour l'origine) et le document Firestore
    (1 Mio par étude). */
 
-const CLES_LOCALES = ['rouelab.points.v1', 'rouelab.spectres.v1', 'rouelab.melange.v1',
-                      'rouelab.vue', 'rouelab.theme', 'rouelab.asideW',
+/* Données de compte : effacées à la déconnexion. */
+const CLES_TRAVAIL = ['rouelab.points.v1', 'rouelab.spectres.v1', 'rouelab.melange.v1',
                       'rouelab.maj', 'rouelab.uid'];
+/* Préférences d'affichage : elles survivent, elles n'appartiennent à personne. */
+const CLES_LOCALES = [...CLES_TRAVAIL, 'rouelab.vue', 'rouelab.theme', 'rouelab.asideW'];
 const PLAFOND_LOCAL = 5 * 1024 * 1024;
 
 function fmtOctets(n) {
@@ -3416,9 +3532,17 @@ function poserJauge(id, octets, plafond) {
   // Le seuil d'alerte est à 80 % : au-delà, une photo de plus peut échouer.
   barre.dataset.niveau = part > 0.8 ? 'haut' : part > 0.5 ? 'moyen' : 'bas';
 }
+/* Le plafond de 1 Mio porte sur le document d'étude, et les photos n'y sont
+   plus : c'est donc lui qu'on mesure, photos ôtées. */
+function tailleDocEtude() {
+  const e = etudeCourante();
+  for (const essai of essaisDe(e)) essai.photo = '';
+  return new Blob([JSON.stringify(e)]).size;
+}
+
 function majQuotas() {
   const local = octetsLocaux();
-  const etude = new Blob([JSON.stringify(etudeCourante())]).size;
+  const etude = tailleDocEtude();
   const oL = document.getElementById('out-local');
   const oE = document.getElementById('out-etude');
   if (oL) oL.textContent = `${fmtOctets(local)} / ${fmtOctets(PLAFOND_LOCAL)}`;
