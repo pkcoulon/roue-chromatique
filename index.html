@@ -500,6 +500,16 @@
   .reglage label { font-size: var(--t-dense); }
   .reglage output { font: var(--t-note)/1 var(--f-mono); font-variant-numeric: tabular-nums; color: var(--ink-2); }
 
+  /* Jauge de remplissage : le seuil d'alerte tient au fond, pas à la seule
+     couleur — la barre s'allonge, la teinte ne fait que confirmer. */
+  .jauge {
+    height: 6px; border-radius: 3px; overflow: hidden;
+    background: var(--card-2); border: 1px solid var(--hairline);
+  }
+  .jauge i { display: block; height: 100%; width: 0; background: var(--accent-plein); transition: width .2s; }
+  .jauge i[data-niveau="moyen"] { background: #C8922F; }
+  .jauge i[data-niveau="haut"] { background: var(--danger-plein); }
+
   /* ==================== Surfaces flottantes ====================
      Bibliothèque, Réglages, Compte : indépendantes de la vue, donc hors de
      la colonne contextuelle. Ouvertes depuis l'en-tête. */
@@ -1077,6 +1087,24 @@
       <input type="range" id="reg-cmax" min="60" max="160" step="5" value="120">
     </div>
     <p class="note">Ces deux réglages ne portent que sur le fond de la roue : ils ne modifient aucune couleur de la palette.</p>
+
+    <p class="sous-titre">Stockage</p>
+    <div class="reglage">
+      <div class="ligne">
+        <label>Navigateur</label>
+        <output id="out-local"></output>
+      </div>
+      <div class="jauge"><i id="jauge-local"></i></div>
+    </div>
+    <div class="reglage">
+      <div class="ligne">
+        <label>Travail en cours</label>
+        <output id="out-etude"></output>
+      </div>
+      <div class="jauge"><i id="jauge-etude"></i></div>
+    </div>
+    <p class="note" id="etat-sync" role="status"></p>
+    <p class="note">Le travail en cours est repoussé sur votre compte quelques secondes après chaque modification — pas seulement à l'enregistrement. Les photos d'essai pèsent lourd dans les deux jauges : un document est plafonné à 1 Mio.</p>
   </div>
 </div>
 
@@ -1535,6 +1563,7 @@ function chargerPoints() {
 }
 function sauverPoints() {
   try { localStorage.setItem('rouelab.points.v1', JSON.stringify(points)); } catch (e) {}
+  planifierPousseCourant();
 }
 
 /* Encres fixes des surfaces graphiques (toujours sombres). */
@@ -1770,6 +1799,7 @@ function sauverMelange() {
       gamme: melange.gamme, masse: melange.masse
     }));
   } catch (e) {}
+  planifierPousseCourant();
 }
 
 /* ---------- Conversions Lab ↔ K/S ---------- */
@@ -3137,6 +3167,9 @@ async function chargerCloud() {
   } catch (e) {
     document.getElementById('cpt-qui').textContent = `Lecture du compte impossible : ${e.message}`;
   }
+  // Le brouillon vient après l'index : les deux lectures sont indépendantes,
+  // et l'échec de l'une ne doit pas priver de l'autre.
+  await reprendreCourant();
 }
 
 function planifierPousseCloud() {
@@ -3191,6 +3224,128 @@ async function supprimerEtudeCloud(id) {
   } catch (e) {
     messageBib(`Étude retirée de la liste, mais non supprimée du compte : ${e.message}`);
   }
+}
+
+/* ==================== Travail en cours ====================
+   Tout ce qui se fait sur le site remonte sur le compte, pas seulement ce
+   qu'on enregistre explicitement : l'état de travail vit dans le document
+   réservé `etudes/courant`. Il n'est pas dans l'index, donc il n'apparaît
+   jamais dans la liste des études — c'est un brouillon, pas une étude.
+
+   Réconciliation au plus simple, et dite à l'utilisateur : à la connexion, la
+   version la plus récente gagne. Deux postes ouverts en même temps, c'est le
+   dernier qui écrit qui l'emporte ; l'outil est mono-utilisateur, on ne fait
+   pas de fusion à trois branches. */
+
+const DOC_COURANT = 'courant';
+let minuterieCourant = null;
+let dernierPousseCourant = '';
+/* L'initialisation appelle les fonctions de sauvegarde : sans ce garde, un
+   navigateur vierge daterait son état vide de « maintenant » et l'écraserait
+   sur le travail du compte à la première connexion. */
+let pretPourSync = false;
+
+function marquerMaj() {
+  try { localStorage.setItem('rouelab.maj', new Date().toISOString()); } catch (e) {}
+}
+function majLocale() {
+  try { return localStorage.getItem('rouelab.maj') || ''; } catch (e) { return ''; }
+}
+
+function planifierPousseCourant() {
+  if (!pretPourSync) return;
+  marquerMaj();
+  majQuotas();
+  if (!fbDb || !utilisateur) { etatSync('hors compte — rien n’est sauvegardé'); return; }
+  clearTimeout(minuterieCourant);
+  etatSync('modifications en attente…');
+  minuterieCourant = setTimeout(async () => {
+    const etude = etudeCourante();
+    const charge = JSON.stringify(etude);
+    if (charge === dernierPousseCourant) { etatSync('à jour sur le compte'); return; }
+    const octets = new Blob([charge]).size;
+    if (octets > MAX_ETUDE) {
+      etatSync(`travail trop lourd (${fmtOctets(octets)}) — non synchronisé, retirez des photos`);
+      return;
+    }
+    try {
+      await refEtudes().doc(DOC_COURANT).set({ ...etude, maj: majLocale() });
+      dernierPousseCourant = charge;
+      etatSync('à jour sur le compte');
+    } catch (e) {
+      etatSync(`synchronisation impossible : ${e.message}`);
+    }
+  }, 3000);
+}
+
+async function reprendreCourant() {
+  if (!fbDb || !utilisateur) return;
+  let doc;
+  try {
+    doc = await refEtudes().doc(DOC_COURANT).get();
+  } catch (e) {
+    etatSync(`lecture du travail en cours impossible : ${e.message}`);
+    return;
+  }
+  if (!doc.exists) { planifierPousseCourant(); return; }
+  const distant = doc.data();
+  const majDistante = typeof distant.maj === 'string' ? distant.maj : '';
+  // Les dates ISO se comparent comme des chaînes : l'ordre est chronologique.
+  if (majDistante && majDistante > majLocale()) {
+    appliquerEtude(distant);
+    try { localStorage.setItem('rouelab.maj', majDistante); } catch (e) {}
+    dernierPousseCourant = JSON.stringify(etudeCourante());
+    etatSync(`travail repris du compte (${majDistante.slice(0, 16).replace('T', ' à ')})`);
+  } else {
+    planifierPousseCourant();
+  }
+}
+
+/* ==================== Quotas ====================
+   Deux plafonds distincts, et aucun n'est théorique dès qu'il y a des photos :
+   le stockage du navigateur (~5 Mo pour l'origine) et le document Firestore
+   (1 Mio par étude). */
+
+const CLES_LOCALES = ['rouelab.points.v1', 'rouelab.spectres.v1', 'rouelab.melange.v1',
+                      'rouelab.vue', 'rouelab.theme', 'rouelab.asideW', 'rouelab.maj'];
+const PLAFOND_LOCAL = 5 * 1024 * 1024;
+
+function fmtOctets(n) {
+  return n >= 1048576
+    ? `${(n / 1048576).toFixed(1).replace('.', ',')} Mo`
+    : `${Math.round(n / 1024)} Ko`;
+}
+function octetsLocaux() {
+  let n = 0;
+  for (const cle of CLES_LOCALES) {
+    try {
+      const v = localStorage.getItem(cle);
+      if (v) n += new Blob([v]).size;
+    } catch (e) { /* clé illisible */ }
+  }
+  return n;
+}
+function etatSync(txt) {
+  const el = document.getElementById('etat-sync');
+  if (el) el.textContent = txt;
+}
+function poserJauge(id, octets, plafond) {
+  const barre = document.getElementById(id);
+  if (!barre) return;
+  const part = Math.min(1, octets / plafond);
+  barre.style.width = `${(part * 100).toFixed(1)}%`;
+  // Le seuil d'alerte est à 80 % : au-delà, une photo de plus peut échouer.
+  barre.dataset.niveau = part > 0.8 ? 'haut' : part > 0.5 ? 'moyen' : 'bas';
+}
+function majQuotas() {
+  const local = octetsLocaux();
+  const etude = new Blob([JSON.stringify(etudeCourante())]).size;
+  const oL = document.getElementById('out-local');
+  const oE = document.getElementById('out-etude');
+  if (oL) oL.textContent = `${fmtOctets(local)} / ${fmtOctets(PLAFOND_LOCAL)}`;
+  if (oE) oE.textContent = `${fmtOctets(etude)} / ${fmtOctets(1048576)}`;
+  poserJauge('jauge-local', local, PLAFOND_LOCAL);
+  poserJauge('jauge-etude', etude, 1048576);
 }
 
 /* ==================== Quasi plein écran ==================== */
@@ -3362,6 +3517,7 @@ const spectres = chargerSpectres();
 function sauverSpectres() {
   try {
     localStorage.setItem('rouelab.spectres.v1', JSON.stringify(spectres));
+    planifierPousseCourant();
     return true;
   } catch (e) { return false; }
 }
@@ -4415,6 +4571,14 @@ rendreResultatsSpectre();
 rendreIdentite();
 appliquerVue();
 redessiner();
+
+/* À partir d'ici seulement, une sauvegarde vaut « l'utilisateur a modifié
+   quelque chose » : l'initialisation ci-dessus en a déclenché plusieurs, et
+   les dater aurait fait passer un navigateur vierge pour plus récent que le
+   compte. */
+pretPourSync = true;
+majQuotas();
+etatSync(utilisateur ? 'à jour sur le compte' : 'hors compte — rien n’est sauvegardé');
 </script>
 
 </body>
