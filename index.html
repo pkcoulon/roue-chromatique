@@ -9,649 +9,904 @@
      connect-src n'autorise que Firebase, donc pas d'exfiltration vers un
      tiers ; object-src et base-uri verrouillent d'autres vecteurs. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://*.googleapis.com; object-src 'none'; base-uri 'none'; form-action 'none'">
-<title>Roue chromatique CIE L*a*b*</title>
+<title>Chromathèque — palette, mélanges, spectres, essais</title>
 <style>
+  /* ==================== Jetons ====================
+     Les huit variables historiques (--bg --card --ink --muted --hairline
+     --accent --input-bg --canvas-ground) sont conservées : passer au nouveau
+     système est une substitution de valeurs, pas une réécriture. Le plan de
+     mesure (--canvas-ground) est le seul jeton identique dans les deux
+     thèmes : une couleur ne se juge pas sur un fond qui change. */
   :root {
-    --bg: #F2F2F5;
+    /* Familles — deux au travail, la troisième réservée au nom du produit */
+    --f-sys: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --f-mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
+    --f-marque: Optima, Candara, "Gill Sans", "Segoe UI", sans-serif;
+
+    /* Échelle typographique */
+    --t-etiquette: 11px;   /* capitales espacées : AFFICHAGE, PALETTE, ESSAIS */
+    --t-note: 12px;        /* légende, unité, badge */
+    --t-dense: 13px;       /* champ, ligne de liste, bouton */
+    --t-corps: 14px;       /* texte courant */
+    --t-sous: 16px;
+    --t-titre: 20px;
+    --t-marque: 22px;
+    --pl-caps: 0.09em;     /* interlettrage des capitales */
+
+    /* Espacement (pas de 4) */
+    --e-05: 2px;  --e-1: 4px;   --e-2: 8px;   --e-3: 12px;  --e-4: 16px;
+    --e-5: 20px;  --e-6: 24px;  --e-8: 32px;  --e-10: 40px;
+
+    /* Rayons, attribués par nature d'objet */
+    --r-1: 4px;   /* pastille, planche, puce */
+    --r-2: 6px;   /* bouton, champ, onglet */
+    --r-3: 8px;   /* carte, panneau */
+    --r-4: 12px;  /* modale, porte */
+
+    /* Gabarit */
+    --h-ctl: 32px;      /* hauteur de tout contrôle */
+    --h-ctl-s: 26px;    /* variante dense : outils d'en-tête de carte */
+    --h-tete: 56px;
+    --aside-w: 340px;   /* colonne contextuelle, redimensionnable */
+
+    /* Clair (défaut) */
+    --bg: #EFEFF2;
     --card: #FFFFFF;
-    --ink: #1C1C21;
-    --muted: #6B6B76;
-    --hairline: #DDDDE3;
-    --accent: #4A56C0;
-    --canvas-ground: #101014;
-    --input-bg: #F7F7FA;
+    --card-2: #F5F5F8;
+    --input-bg: var(--card-2);
+    --hairline: #DEDEE4;
+    --hairline-fort: #C7C7D0;
+    --ink: #17171D;
+    --ink-2: #52525C;
+    --muted: var(--ink-2);
+    --ink-3: #6E6E7A;
+    --accent: #4A54BE;
+    --accent-plein: #4A54BE;
+    --accent-encre: #FFFFFF;
+    --accent-fond: #ECEDF9;
+    --accent-bord: #C3C7EA;
+    --danger: #B4322B;
+    --danger-plein: #B4322B;
+    --danger-fond: #FBECEB;
+    --danger-bord: #EFC9C6;
+    --canvas-ground: #101014;   /* imposé, dans les deux thèmes */
+    --plan-mont: #E4E4EA;       /* passe-partout autour de la planche */
+    --plan-bord: #0A0A0D;
+    --ombre-1: 0 1px 2px rgb(0 0 0 / .08);
+    --ombre-2: 0 10px 28px rgb(0 0 0 / .12);
+    --ombre-3: 0 28px 70px rgb(0 0 0 / .18);
   }
+
+  /* Cible tactile : un seul point de bascule pour tous les contrôles */
+  @media (pointer: coarse) {
+    :root { --h-ctl: 40px; --h-ctl-s: 34px; }
+  }
+
+  /* Sombre — les mêmes vingt valeurs, deux fois : une pour la préférence
+     système, une pour la surcharge manuelle. CSS n'offre pas de mixin. */
   @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #101014;
-      --card: #16161B;
-      --ink: #E8E8EC;
-      --muted: #9A9AA2;
-      --hairline: #2A2A32;
-      --accent: #8B94E8;
-      --input-bg: #1C1C22;
+    :root:not([data-theme="light"]) {
+      --bg: #0C0C0F;
+      --card: #17171D;
+      --card-2: #1F1F27;
+      --hairline: #262630;
+      --hairline-fort: #33333F;
+      --ink: #E9E9EE;
+      --ink-2: #9EA0AB;
+      --ink-3: #85868F;
+      --accent: #99A2F0;
+      --accent-plein: #5B65D6;
+      --accent-fond: #1B1D33;
+      --accent-bord: #363C6B;
+      --danger: #F0857E;
+      --danger-plein: #C2413A;
+      --danger-fond: #2A1618;
+      --danger-bord: #5A2A28;
+      --plan-mont: transparent;
+      --plan-bord: #2A2A34;
+      --ombre-1: 0 1px 2px rgb(0 0 0 / .35);
+      --ombre-2: 0 10px 28px rgb(0 0 0 / .45);
+      --ombre-3: 0 28px 70px rgb(0 0 0 / .6);
     }
   }
   :root[data-theme="dark"] {
-    --bg: #101014;
-    --card: #16161B;
-    --ink: #E8E8EC;
-    --muted: #9A9AA2;
-    --hairline: #2A2A32;
-    --accent: #8B94E8;
-    --input-bg: #1C1C22;
+    --bg: #0C0C0F;
+    --card: #17171D;
+    --card-2: #1F1F27;
+    --hairline: #262630;
+    --hairline-fort: #33333F;
+    --ink: #E9E9EE;
+    --ink-2: #9EA0AB;
+    --ink-3: #85868F;
+    --accent: #99A2F0;
+    --accent-plein: #5B65D6;
+    --accent-fond: #1B1D33;
+    --accent-bord: #363C6B;
+    --danger: #F0857E;
+    --danger-plein: #C2413A;
+    --danger-fond: #2A1618;
+    --danger-bord: #5A2A28;
+    --plan-mont: transparent;
+    --plan-bord: #2A2A34;
+    --ombre-1: 0 1px 2px rgb(0 0 0 / .35);
+    --ombre-2: 0 10px 28px rgb(0 0 0 / .45);
+    --ombre-3: 0 28px 70px rgb(0 0 0 / .6);
   }
-  :root[data-theme="light"] {
-    --bg: #F2F2F5;
-    --card: #FFFFFF;
-    --ink: #1C1C21;
-    --muted: #6B6B76;
-    --hairline: #DDDDE3;
-    --accent: #4A56C0;
-    --input-bg: #F7F7FA;
-  }
+
+  /* ==================== Base ==================== */
 
   * { box-sizing: border-box; }
+  /* Nécessaire : toute règle d'affichage (display:flex sur .actions…)
+     écraserait sinon l'attribut hidden. */
   [hidden] { display: none !important; }
+
+  html, body { height: 100%; }
   body {
     margin: 0;
+    overflow: hidden;              /* la page ne défile plus : deux régions le font */
     background: var(--bg);
     color: var(--ink);
-    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font: var(--t-corps)/1.5 var(--f-sys);
+    -webkit-font-smoothing: antialiased;
   }
-  code, .mono, input[type="number"] {
-    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
-    font-variant-numeric: tabular-nums;
+  code, .mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
   }
 
-  header {
-    padding: 22px 28px 14px;
+  h2 { margin: 0; }
+  aside h2, main h2, .etiquette {
+    font: 600 var(--t-etiquette)/1.25 var(--f-sys);
+    letter-spacing: var(--pl-caps); text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .note {
+    margin: var(--e-2) 0 0;
+    font-size: var(--t-note); line-height: 1.5; color: var(--ink-2);
+  }
+  /* Un message vide ne laisse pas de trou : plusieurs `.note` ne servent qu'à
+     recevoir un texte transitoire (import, quota, connexion). */
+  .note:empty { display: none; }
+  .sous-titre {
+    margin: var(--e-4) 0 var(--e-2);
+    font: 600 var(--t-etiquette)/1.25 var(--f-sys);
+    letter-spacing: var(--pl-caps); text-transform: uppercase; color: var(--ink-3);
+  }
+
+  /* ==================== Châssis ====================
+     En-tête fixe, puis deux régions à défilement propre. Aucune règle ici ne
+     pose `display` sur un élément porteur de data-vue. */
+
+  .chassis { height: 100dvh; display: grid; grid-template-rows: var(--h-tete) 1fr; }
+
+  .tete {
+    display: flex; align-items: center; gap: var(--e-4);
+    padding: 0 var(--e-5);
     border-bottom: 1px solid var(--hairline);
-    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    background: var(--card);
+    min-width: 0;
   }
-  header h1 {
-    margin: 0;
-    font-family: Optima, Candara, "Gill Sans", "Segoe UI", sans-serif;
-    font-size: 22px; font-weight: 600; letter-spacing: 0.01em;
+  .tete .marque {
+    font: 600 var(--t-marque)/1 var(--f-marque);
+    letter-spacing: .01em; white-space: nowrap;
   }
-  header p { margin: 0; color: var(--muted); font-size: 13px; }
+  .vues { display: flex; gap: var(--e-1); }
+  .vue-onglet {
+    height: var(--h-ctl); padding: 0 var(--e-4);
+    border-color: transparent; background: none; color: var(--ink-2);
+  }
+  .vue-onglet:hover { background: var(--card-2); border-color: transparent; color: var(--ink); }
+  .vue-onglet[aria-selected="true"] {
+    background: var(--accent-fond); border-color: var(--accent-bord); color: var(--accent);
+  }
+  .tete-outils { margin-left: auto; display: flex; align-items: center; gap: var(--e-1); }
+  .tete-sep { width: 1px; height: 20px; background: var(--hairline); }
 
   .app {
     display: grid;
-    grid-template-columns: var(--aside-w, 320px) 1fr;
-    gap: 20px;
-    padding: 20px 28px 40px;
-    max-width: 1480px;
+    grid-template-columns: var(--aside-w) 1fr;
+    min-height: 0;
+    position: relative;
   }
-  @media (max-width: 980px) {
-    .app { grid-template-columns: 1fr; }
-    #redim { display: none; }
+  aside, main {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
   }
+  aside {
+    border-right: 1px solid var(--hairline);
+    padding: var(--e-4);
+    display: flex; flex-direction: column;
+  }
+  main { padding: var(--e-5); display: flex; flex-direction: column; }
 
-  /* Poignée de redimensionnement de la colonne de gauche */
+  /* Poignée de redimensionnement, posée sur la frontière des deux colonnes */
   #redim {
-    position: absolute;
-    top: 0; bottom: 0;
-    right: -13px;              /* dans la gouttière entre les deux colonnes */
-    width: 12px;
-    cursor: col-resize;
-    z-index: 10;
-    touch-action: none;
+    position: absolute; top: 0; bottom: 0;
+    left: var(--aside-w); width: 12px; margin-left: -6px;
+    cursor: col-resize; z-index: 10; touch-action: none;
   }
   #redim::after {
     content: '';
-    position: absolute;
-    top: 0; bottom: 0; left: 5px;
-    width: 2px; border-radius: 2px;
-    background: var(--hairline);
+    position: absolute; top: 0; bottom: 0; left: 5px;
+    width: 2px; border-radius: 2px; background: transparent;
     transition: background 0.15s;
   }
-  #redim:hover::after, body.redim-actif #redim::after { background: var(--accent); }
+  #redim:hover::after, body.redim-actif #redim::after { background: var(--accent-plein); }
   body.redim-actif { cursor: col-resize; user-select: none; }
 
-  /* ---------- Colonne palette : panneaux accordéon ---------- */
-  aside details.bloc {
-    background: var(--card);
-    border: 1px solid var(--hairline);
-    border-radius: 8px;
-    overflow: hidden;
+  /* Tablette : la colonne passe en tiroir, le contenu prend toute la largeur */
+  #btn-tiroir { display: none; }
+  @media (max-width: 1180px) {
+    .app { grid-template-columns: 1fr; }
+    #redim { display: none; }
+    .tete .marque { display: none; }
+    #btn-tiroir { display: inline-flex; }
+    aside {
+      position: fixed; z-index: 80;
+      top: var(--h-tete); bottom: 0; left: 0;
+      width: min(88vw, 380px);
+      background: var(--card); box-shadow: var(--ombre-3);
+      transform: translateX(-100%); transition: transform .18s ease;
+    }
+    aside[data-ouvert] { transform: none; }
   }
-  aside details.bloc > summary {
-    list-style: none;
+
+  /* ==================== Boutons ====================
+     Quatre poids, une seule action primaire par panneau. */
+
+  button {
+    height: var(--h-ctl);
+    padding: 0 var(--e-3);
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--e-2);
+    border: 1px solid var(--hairline-fort);
+    border-radius: var(--r-2);
+    background: var(--card-2);
+    color: var(--ink);
+    font: var(--t-dense)/1 var(--f-sys);
     cursor: pointer;
-    padding: 12px 16px;
-    display: flex; align-items: center; gap: 8px;
-    user-select: none;
+    white-space: nowrap;
   }
-  aside details.bloc > summary::-webkit-details-marker { display: none; }
-  aside details.bloc > summary:hover { background: var(--input-bg); }
-  aside details.bloc > summary h2 { margin: 0; }
-  aside details.bloc > summary::before {
-    content: '▸';
-    color: var(--muted);
-    font-size: 12px;
-    transition: transform 0.15s;
+  button:hover { background: var(--hairline); border-color: var(--ink-3); }
+  button:disabled, button:disabled:hover {
+    opacity: .4; cursor: not-allowed;
+    background: var(--card-2); border-color: var(--hairline-fort);
   }
-  aside details.bloc[open] > summary::before { transform: rotate(90deg); }
-  aside summary .badge {
+  button.primaire {
+    background: var(--accent-plein); border-color: var(--accent-plein);
+    color: var(--accent-encre); box-shadow: var(--ombre-1);
+  }
+  button.primaire:hover { filter: brightness(.92); border-color: var(--accent-plein); }
+  button.discret {
+    height: var(--h-ctl-s);
+    border-color: transparent; background: none;
+    color: var(--ink-2); font-size: var(--t-note);
+  }
+  button.discret:hover { background: var(--card-2); border-color: transparent; color: var(--ink); }
+  button.actif { background: var(--accent-fond); border-color: var(--accent-bord); color: var(--accent); }
+  button.danger { color: var(--danger); }
+  button.danger:hover { border-color: var(--danger); color: var(--danger); background: var(--danger-fond); }
+  button.danger-plein {
+    background: var(--danger-plein); border-color: var(--danger-plein); color: #FFFFFF;
+  }
+  button.danger-plein:hover { filter: brightness(.92); border-color: var(--danger-plein); }
+
+  /* Destructif : croix discrète au repos, plein une fois armé (armerSuppr) */
+  button.suppr {
+    width: var(--h-ctl); height: var(--h-ctl); padding: 0;
+    border-color: transparent; background: none;
+    color: var(--ink-3); font-size: 15px;
+  }
+  button.suppr:hover { background: var(--danger-fond); border-color: transparent; color: var(--danger); }
+  button.suppr.confirme {
+    width: auto; padding: 0 var(--e-3);
+    background: var(--danger-plein); border-color: var(--danger-plein);
+    color: #FFFFFF; font-size: var(--t-note);
+    box-shadow: var(--ombre-1);
+  }
+  button.epingle {
+    width: var(--h-ctl); height: var(--h-ctl); padding: 0;
+    border-color: transparent; background: none;
+    color: var(--ink-3); font-size: 13px;
+  }
+  button.epingle:hover { background: var(--card-2); border-color: transparent; color: var(--ink); }
+  button.epingle.actif { background: var(--accent-fond); color: var(--accent); }
+
+  .actions { display: flex; gap: var(--e-2); margin-top: var(--e-3); flex-wrap: wrap; align-items: center; }
+  .actions .fin { margin-left: auto; }
+
+  /* ==================== Champs ==================== */
+
+  input[type="text"], input[type="number"], input[type="email"],
+  input[type="password"], input[type="date"], select {
+    width: 100%; height: var(--h-ctl);
+    padding: 0 var(--e-2);
+    border: 1px solid var(--hairline-fort);
+    border-radius: var(--r-2);
+    background: var(--input-bg);
+    color: var(--ink);
+    font: var(--t-dense)/1 var(--f-sys);
+    color-scheme: light dark;      /* pour le sélecteur de date natif */
+  }
+  input:hover, select:hover { border-color: var(--ink-3); }
+  input:focus-visible, select:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  input:focus-visible, select:focus-visible {
+    outline: none;
+    border-color: var(--accent-plein);
+    box-shadow: 0 0 0 3px var(--accent-fond);
+  }
+  input[aria-invalid="true"] {
+    border-color: var(--danger-plein); box-shadow: 0 0 0 3px var(--danger-fond);
+  }
+  input:disabled { background: var(--card); color: var(--ink-3); border-color: var(--hairline); }
+
+  /* Nombres : monospace tabulaire aligné à droite — c'est ce qui fait tenir
+     les colonnes L / a / b sur trente colorants. */
+  input[type="number"], input.num {
+    font-family: var(--f-mono); font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type="range"] { width: 100%; height: var(--h-ctl); accent-color: var(--accent-plein); }
+  input[type="radio"], input[type="checkbox"] { accent-color: var(--accent-plein); }
+
+  /* Étiquette au-dessus, en capitales : elle ne consomme pas de largeur */
+  .spc-grille label, .id-grille label, .essai-champs label, .pt-nums label {
+    display: flex; flex-direction: column; gap: var(--e-1);
+    font: 600 var(--t-etiquette)/1.25 var(--f-sys);
+    letter-spacing: var(--pl-caps); text-transform: uppercase; color: var(--ink-3);
+  }
+  .spc-grille label input, .id-grille label input,
+  .essai-champs label input, .pt-nums label input {
+    text-transform: none; letter-spacing: 0;
+  }
+
+  /* Un message vide n'occupe aucune place ; rempli, il devient un bandeau. */
+  #excel-msg:not(:empty), #mel-msg:not(:empty), #spc-msg:not(:empty),
+  #id-msg:not(:empty), #porte-msg:not(:empty), #suppr-msg:not(:empty) {
+    padding: var(--e-2) var(--e-3);
+    border: 1px solid var(--accent-bord); border-radius: var(--r-2);
+    background: var(--accent-fond); color: var(--accent);
+  }
+
+  /* ==================== Panneaux repliables ==================== */
+
+  details.bloc { border-bottom: 1px solid var(--hairline); }
+  details.bloc:last-of-type { border-bottom: none; }
+  details.bloc > summary {
+    height: var(--h-ctl);
+    display: flex; align-items: center; gap: var(--e-2);
+    list-style: none; cursor: pointer; user-select: none;
+  }
+  details.bloc > summary::-webkit-details-marker { display: none; }
+  details.bloc > summary::before {
+    content: '▶'; font-size: 9px; color: var(--ink-3); transition: transform 0.15s;
+  }
+  details.bloc[open] > summary::before { transform: rotate(90deg); }
+  details.bloc > summary h2 { color: var(--ink-3); }
+  details.bloc[open] > summary h2, details.bloc > summary:hover h2 { color: var(--ink); }
+  .badge {
     margin-left: auto;
-    color: var(--muted);
-    font-size: 11px;
-    font-variant-numeric: tabular-nums;
+    font: var(--t-etiquette)/1 var(--f-mono); font-variant-numeric: tabular-nums;
+    color: var(--ink-3);
   }
-  .bloc-corps { padding: 2px 16px 16px; }
+  .bloc-corps { padding: var(--e-1) 0 var(--e-4); }
 
   /* Dépliage animé (navigateurs récents ; bascule instantanée sinon) */
   @supports (interpolate-size: allow-keywords) {
     :root { interpolate-size: allow-keywords; }
     aside details::details-content {
-      block-size: 0;
-      overflow-y: clip;
+      block-size: 0; overflow-y: clip;
       transition: block-size 0.25s ease, content-visibility 0.25s allow-discrete;
     }
     aside details[open]::details-content { block-size: auto; }
   }
-  aside { display: flex; flex-direction: column; gap: 16px; position: relative; }
-  aside h2, main h2 {
-    margin: 0 0 10px;
-    font-size: 11px; font-weight: 600;
-    letter-spacing: 0.09em; text-transform: uppercase;
-    color: var(--muted);
+
+  /* ==================== Ligne de colorant ====================
+     Une seule grille, partagée par l'en-tête et les lignes : les colonnes
+     s'alignent. Trente colorants se balayent. */
+
+  .pts { --cols: 22px 1fr 44px 44px 44px; display: flex; flex-direction: column; }
+  .pts-tete, .pt {
+    display: grid; grid-template-columns: var(--cols);
+    gap: var(--e-2); align-items: center; padding: 0 var(--e-2);
   }
-  .pts { display: flex; flex-direction: column; gap: 10px; }
+  .pts-tete { padding-bottom: var(--e-1); border-bottom: 1px solid var(--hairline); }
+  .pts-tete span {
+    font: 600 10px/1 var(--f-mono); letter-spacing: .1em; color: var(--ink-3);
+  }
+  .pts-tete .r, .pt .num { text-align: right; }
   .pt {
-    border: 1px solid var(--hairline);
-    border-radius: 6px;
-    padding: 8px 10px;
-    display: flex; flex-direction: column; gap: 6px;
+    height: 34px; border: 1px solid transparent; border-radius: var(--r-1);
+    cursor: pointer;
   }
-  .pt-top { display: grid; grid-template-columns: 22px 1fr 24px 24px; gap: 6px; align-items: center; }
-  .sw {
-    width: 22px; height: 22px; border-radius: 5px;
-    border: 1px solid rgba(0,0,0,.25);
+  .pt:hover { background: var(--card-2); }
+  .pt .nom { font-size: var(--t-dense); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pt .num {
+    font: var(--t-note)/1 var(--f-mono); font-variant-numeric: tabular-nums; color: var(--ink-2);
   }
-  .pt-nums {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr) auto;
-    gap: 6px; align-items: center;
+  .sw { width: 22px; height: 22px; border-radius: var(--r-1); border: 1px solid rgb(255 255 255 / .14); box-shadow: inset 0 0 0 1px rgb(0 0 0 / .18); }
+
+  /* Sélection : la ligne devient le formulaire, et elle seule. Jamais
+     `display:none` ici — la ligne n'est pas masquée, elle change de forme. */
+  .pt.ouvert {
+    display: block; height: auto; cursor: default;
+    padding: var(--e-2) var(--e-2) var(--e-3);
+    margin: var(--e-1) 0;
+    background: var(--accent-fond);
+    border-color: var(--accent-bord);
+    border-radius: var(--r-2);
   }
-  .pt-nums label {
-    display: flex; align-items: center; gap: 4px;
-    font-size: 11px; color: var(--muted);
+  .pt.ouvert:hover { background: var(--accent-fond); }
+  .pt-top {
+    display: grid; grid-template-columns: 22px 1fr var(--h-ctl) var(--h-ctl);
+    gap: var(--e-2); align-items: center;
   }
-  .pt-nums code { font-size: 11px; color: var(--muted); justify-self: end; }
-  input[type="text"], input[type="number"], input[type="email"], input[type="password"], input[type="date"] {
-    width: 100%;
-    background: var(--input-bg);
-    color: var(--ink);
-    border: 1px solid var(--hairline);
-    border-radius: 5px;
-    padding: 4px 6px;
-    font-size: 13px;
+  .pt-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--e-2); margin-top: var(--e-2); }
+  .pt-hex {
+    margin-top: var(--e-2); text-align: right;
+    font: var(--t-note)/1 var(--f-mono); color: var(--ink-3);
   }
-  /* ---------- Porte de connexion (bloque toute l'application) ---------- */
+
+  /* ==================== Bibliothèque ==================== */
+
+  .dossier { border-bottom: 1px solid var(--hairline); }
+  .dossier summary {
+    height: var(--h-ctl); cursor: pointer; font-size: var(--t-dense);
+    display: flex; align-items: center; gap: var(--e-2); list-style: none;
+  }
+  .dossier summary::-webkit-details-marker { display: none; }
+  .dossier summary::before { content: '▶'; font-size: 9px; color: var(--ink-3); transition: transform 0.15s; }
+  .dossier[open] summary::before { transform: rotate(90deg); }
+  .dossier summary .nom-dossier { flex: 1; }
+  .dossier summary .compte { font: var(--t-etiquette)/1 var(--f-mono); color: var(--ink-3); }
+  .pal-ligne {
+    display: flex; align-items: center; gap: var(--e-2);
+    height: 34px; padding: 0 var(--e-2) 0 var(--e-5);
+    border-radius: var(--r-1);
+  }
+  .pal-ligne:hover { background: var(--card-2); }
+  .apercu { display: flex; gap: 2px; flex: none; }
+  .apercu i { width: 10px; height: 10px; border-radius: 2px; }
+  .pal-nom {
+    flex: 1; height: auto; padding: 0; justify-content: flex-start;
+    background: none; border: none; color: var(--ink);
+    font-size: var(--t-dense); text-align: left;
+  }
+  .pal-nom:hover { background: none; border: none; color: var(--accent); }
+  .bib-vide { color: var(--ink-3); font-size: var(--t-note); margin: 0; }
+  #form-save {
+    display: none; flex-direction: column; gap: var(--e-2);
+    margin-top: var(--e-3); padding-top: var(--e-3); border-top: 1px solid var(--hairline);
+  }
+  #form-save.ouvert { display: flex; }
+
+  .reglage { display: flex; flex-direction: column; gap: var(--e-1); margin-bottom: var(--e-4); }
+  .reglage:last-child { margin-bottom: 0; }
+  .reglage .ligne { display: flex; justify-content: space-between; align-items: baseline; }
+  .reglage label { font-size: var(--t-dense); }
+  .reglage output { font: var(--t-note)/1 var(--f-mono); font-variant-numeric: tabular-nums; color: var(--ink-2); }
+
+  /* ==================== Surfaces flottantes ====================
+     Bibliothèque, Réglages, Compte : indépendantes de la vue, donc hors de
+     la colonne contextuelle. Ouvertes depuis l'en-tête. */
+
+  .flottant {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgb(0 0 0 / .45);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: calc(var(--h-tete) + var(--e-4)) var(--e-4) var(--e-4);
+  }
+  .flottant-carte {
+    width: 100%; max-width: 520px;
+    max-height: calc(100dvh - var(--h-tete) - var(--e-8));
+    overflow-y: auto;
+    background: var(--card); border: 1px solid var(--hairline);
+    border-radius: var(--r-4); box-shadow: var(--ombre-3);
+    padding: var(--e-5) var(--e-6) var(--e-6);
+  }
+  .flottant-tete {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--e-3); margin-bottom: var(--e-3);
+  }
+  .flottant-tete h2 { font-size: var(--t-sous); text-transform: none; letter-spacing: 0; color: var(--ink); }
+
+  /* ==================== Porte de connexion ==================== */
+
   #porte {
     position: fixed; inset: 0; z-index: 200;
     background: var(--bg);
     display: flex; align-items: center; justify-content: center;
-    padding: 20px;
+    padding: var(--e-5);
   }
-  #porte[hidden] { display: none; }
   .porte-carte {
-    background: var(--card);
-    border: 1px solid var(--hairline);
-    border-radius: 10px;
-    padding: 28px 30px;
-    width: 100%; max-width: 360px;
-    display: flex; flex-direction: column; gap: 10px;
+    width: 100%; max-width: 880px;
+    display: grid; grid-template-columns: 1.1fr 1fr;
+    background: var(--card); border: 1px solid var(--hairline);
+    border-radius: var(--r-4); box-shadow: var(--ombre-3);
+    overflow: hidden;
   }
-  .porte-carte h1 {
-    margin: 0 0 2px;
-    font-family: Optima, Candara, "Gill Sans", "Segoe UI", sans-serif;
-    font-size: 20px; font-weight: 600;
+  .porte-presentation {
+    padding: var(--e-8);
+    background: var(--card-2); border-right: 1px solid var(--hairline);
+    display: flex; flex-direction: column; gap: var(--e-3);
   }
-  .porte-carte .note { margin: 0; }
-  #porte-form { display: flex; flex-direction: column; gap: 10px; }
-  #porte-form[hidden] { display: none; }
-  input[type="number"] { padding: 3px 4px; font-size: 12px; }
-  input:focus-visible, button:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
+  .porte-presentation h1 {
+    margin: 0;
+    font: 600 34px/1.15 var(--f-marque); letter-spacing: .01em;
   }
-  button {
-    background: var(--input-bg);
-    color: var(--ink);
-    border: 1px solid var(--hairline);
-    border-radius: 6px;
-    padding: 6px 12px;
-    font-size: 13px;
-    cursor: pointer;
+  .porte-presentation ul { margin: var(--e-2) 0 0; padding-left: var(--e-4); color: var(--ink-2); font-size: var(--t-dense); }
+  .porte-presentation li { margin-bottom: var(--e-1); }
+  .porte-saisie { padding: var(--e-8); display: flex; flex-direction: column; gap: var(--e-3); justify-content: center; }
+  .porte-saisie h2 { font-size: var(--t-sous); text-transform: none; letter-spacing: 0; color: var(--ink); }
+  #porte-form { display: flex; flex-direction: column; gap: var(--e-3); }
+  .porte-champ { display: flex; flex-direction: column; gap: var(--e-1); }
+  .porte-champ span {
+    font: 600 var(--t-etiquette)/1.25 var(--f-sys);
+    letter-spacing: var(--pl-caps); text-transform: uppercase; color: var(--ink-3);
   }
-  button:hover { border-color: var(--accent); color: var(--accent); }
-  button.danger { color: #C84A4A; }
-  button.danger:hover { border-color: #C84A4A; color: #C84A4A; }
-  button.danger-plein {
-    background: #C84A4A; border-color: #C84A4A; color: #FFFFFF;
-  }
-  button.danger-plein:hover { background: #A93C3C; border-color: #A93C3C; color: #FFFFFF; }
-  button:disabled { opacity: 0.45; cursor: not-allowed; }
-  button:disabled:hover { border-color: var(--hairline); color: var(--ink); }
-  button.suppr {
-    padding: 0; width: 24px; height: 24px; line-height: 1;
-    font-size: 15px; color: var(--muted); border: none; background: none;
-  }
-  button.suppr:hover { color: #C84A4A; }
-  button.suppr.confirme { color: #C84A4A; font-size: 10px; width: auto; padding: 0 4px; }
-  button.epingle {
-    padding: 0; width: 24px; height: 24px; line-height: 1;
-    font-size: 12px; border: none; background: none;
-    opacity: 0.3; filter: grayscale(1); cursor: pointer;
-  }
-  button.epingle.actif { opacity: 1; filter: none; }
-  button.epingle:hover { opacity: 1; }
-  .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-
-  /* ---------- Bibliothèque ---------- */
-  .dossier { border: 1px solid var(--hairline); border-radius: 6px; margin-bottom: 8px; overflow: hidden; }
-  .dossier summary {
-    cursor: pointer; padding: 6px 10px; font-size: 13px;
-    display: flex; align-items: center; gap: 6px; list-style: none;
-  }
-  .dossier summary::-webkit-details-marker { display: none; }
-  .dossier summary::before { content: '▸'; color: var(--muted); transition: transform 0.15s; }
-  .dossier[open] summary::before { transform: rotate(90deg); }
-  .dossier summary .nom-dossier { flex: 1; }
-  .dossier summary .compte { color: var(--muted); font-size: 11px; }
-  .pal-ligne {
-    display: flex; align-items: center; gap: 8px;
-    padding: 5px 10px 5px 22px; border-top: 1px solid var(--hairline);
-  }
-  .pal-ligne:hover { background: var(--input-bg); }
-  .apercu { display: flex; gap: 2px; flex: none; }
-  .apercu i { width: 10px; height: 10px; border-radius: 2px; }
-  .pal-nom {
-    flex: 1; background: none; border: none; padding: 2px 0;
-    color: var(--ink); font-size: 13px; text-align: left; cursor: pointer;
-  }
-  .pal-nom:hover { color: var(--accent); }
-  .bib-vide { color: var(--muted); font-size: 12px; margin: 0; }
-  #form-save {
-    display: none; flex-direction: column; gap: 8px;
-    margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hairline);
-  }
-  #form-save.ouvert { display: flex; }
-  select {
-    width: 100%; background: var(--input-bg); color: var(--ink);
-    border: 1px solid var(--hairline); border-radius: 5px;
-    padding: 5px 6px; font-size: 13px;
+  @media (max-width: 720px) {
+    .porte-carte { grid-template-columns: 1fr; }
+    .porte-presentation { border-right: none; border-bottom: 1px solid var(--hairline); padding: var(--e-6); }
+    .porte-saisie { padding: var(--e-6); }
   }
 
-  .reglage { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
-  .reglage:last-child { margin-bottom: 0; }
-  .reglage .ligne { display: flex; justify-content: space-between; align-items: baseline; }
-  .reglage label { font-size: 13px; }
-  .reglage output { font-size: 12px; color: var(--muted); }
-  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  /* ==================== Analyse spectrale (panneau) ==================== */
 
-  /* ---------- Sélecteur d'affichage + analyse spectrale ---------- */
-  .choix-vue {
-    background: var(--card);
-    border: 1px solid var(--hairline);
-    border-radius: 8px;
-    padding: 12px 16px;
-    display: flex; flex-direction: column; gap: 6px;
-  }
-  .choix-vue label {
-    font-size: 11px; font-weight: 600;
-    letter-spacing: 0.09em; text-transform: uppercase;
-    color: var(--muted);
-  }
-  .spc-sous-titre {
-    margin: 12px 0 6px;
-    font-size: 11px; font-weight: 600;
-    letter-spacing: 0.09em; text-transform: uppercase;
-    color: var(--muted);
-  }
-  .spc-ligne-colorant {
-    display: grid; grid-template-columns: 1fr auto;
-    gap: 6px; align-items: center;
-  }
-  .spc-radio { display: flex; gap: 14px; margin: 2px 0 8px; flex-wrap: wrap; }
-  .spc-radio label { display: flex; align-items: center; gap: 5px; font-size: 13px; }
-  .spc-radio input { accent-color: var(--accent); }
-  .spc-grille { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-  .spc-grille label {
-    display: flex; flex-direction: column; gap: 3px;
-    font-size: 11px; color: var(--muted);
-  }
+  .spc-radio { display: flex; gap: var(--e-4); margin: var(--e-1) 0 var(--e-3); flex-wrap: wrap; }
+  .spc-radio label { display: flex; align-items: center; gap: var(--e-1); font-size: var(--t-dense); }
+  .spc-grille { display: grid; grid-template-columns: 1fr 1fr; gap: var(--e-2); }
   .spc-etat-ligne {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 12px; padding: 4px 0;
+    display: flex; align-items: center; gap: var(--e-2);
+    font-size: var(--t-note); min-height: var(--h-ctl);
     border-top: 1px solid var(--hairline);
   }
-  .spc-etat-ligne .texte { flex: 1; }
-  #cv-spectre { aspect-ratio: 16 / 7; }
-  #spc-resultats { display: flex; flex-direction: column; gap: 2px; }
+  .spc-etat-ligne .texte { flex: 1; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+  #spc-resultats { display: flex; flex-direction: column; gap: var(--e-05); font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
 
-  /* ---------- Mélange de colorants + nuancier ---------- */
+  /* ==================== Mélange de colorants ==================== */
+
   .col-ligne {
-    display: grid; grid-template-columns: 22px 1fr auto 24px;
-    gap: 8px; align-items: center;
-    padding: 5px 0; border-top: 1px solid var(--hairline);
+    display: grid; grid-template-columns: 22px 1fr 56px var(--h-ctl);
+    gap: var(--e-2); align-items: center;
+    height: 34px; padding: 0 var(--e-2); border-radius: var(--r-1);
   }
-  .col-ligne:first-child { border-top: none; }
-  .col-ligne .sw { width: 22px; height: 22px; }
-  .col-ligne .nom { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .col-ligne:hover { background: var(--card-2); }
+  .col-ligne .nom { font-size: var(--t-dense); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .col-ligne .part {
-    font-size: 12px; color: var(--accent);
-    font-variant-numeric: tabular-nums;
+    font: var(--t-note)/1 var(--f-mono); font-variant-numeric: tabular-nums;
+    color: var(--accent); text-align: right;
   }
-  .mel-vide { color: var(--muted); font-size: 12px; margin: 0; }
-  button.actif { border-color: var(--accent); color: var(--accent); }
-  .formule { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--hairline); }
-  .formule table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  .formule th, .formule td { text-align: right; padding: 3px 0; }
+  .mel-vide { color: var(--ink-3); font-size: var(--t-note); margin: 0; }
+
+  /* Tableau de formule : le seul endroit où les nombres commandent */
+  .formule table { width: 100%; border-collapse: collapse; font-size: var(--t-dense); }
+  .formule th, .formule td { text-align: right; padding: 7px 0; }
   .formule th:first-child, .formule td:first-child { text-align: left; }
   .formule th {
-    color: var(--muted); font-weight: 600; font-size: 10px;
-    text-transform: uppercase; letter-spacing: 0.06em;
-    border-bottom: 1px solid var(--hairline);
+    font: 600 10px/1 var(--f-mono); letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-3); padding-bottom: 6px; border-bottom: 1px solid var(--hairline);
   }
-  .formule td { font-variant-numeric: tabular-nums; }
+  .formule td { font-family: var(--f-mono); font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--hairline); }
+  .formule td:first-child { font-family: var(--f-sys); }
   .formule .sw-mini {
     display: inline-block; width: 10px; height: 10px; border-radius: 2px;
-    margin-right: 6px; vertical-align: -1px; border: 1px solid rgba(0,0,0,.25);
+    margin-right: var(--e-2); vertical-align: -1px; border: 1px solid rgb(0 0 0 / .25);
   }
+  .ecart {
+    display: flex; align-items: baseline; justify-content: space-between; gap: var(--e-3);
+    margin-top: var(--e-3); padding-top: var(--e-3); border-top: 1px solid var(--hairline-fort);
+  }
+  .ecart b { font: var(--t-sous)/1 var(--f-mono); font-variant-numeric: tabular-nums; color: var(--accent); }
 
-  #nuancier {
+  /* ==================== État vide ==================== */
+
+  .vide {
+    border: 1px dashed var(--hairline-fort); border-radius: var(--r-3);
+    padding: var(--e-6) var(--e-5); text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: var(--e-1);
+  }
+  .vide b { font-size: var(--t-dense); color: var(--ink); }
+  .vide p { margin: 0 0 var(--e-2); max-width: 320px; font-size: var(--t-note); line-height: 1.5; color: var(--ink-2); }
+
+  /* ==================== Nuancier ==================== */
+
+  #nuancier, #mesure {
     position: fixed; inset: 0; z-index: 120;
-    background: rgba(0,0,0,0.55);
-    display: flex; align-items: center; justify-content: center; padding: 20px;
+    background: rgb(0 0 0 / .55);
+    display: flex; align-items: center; justify-content: center; padding: var(--e-5);
   }
-  .nuancier-carte {
-    background: var(--card); border: 1px solid var(--hairline); border-radius: 10px;
-    padding: 18px 20px; width: 100%; max-width: 620px;
-    max-height: 86vh; overflow: auto;
-    display: flex; flex-direction: column; gap: 8px;
+  #mesure { z-index: 150; }
+  .nuancier-carte, .mesure-carte {
+    background: var(--card); border: 1px solid var(--hairline);
+    border-radius: var(--r-4); box-shadow: var(--ombre-3);
+    padding: var(--e-5) var(--e-6) var(--e-6);
+    width: 100%; display: flex; flex-direction: column; gap: var(--e-2);
   }
-  .nuancier-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-  .nuancier-tete h2 { margin: 0; }
+  .nuancier-carte { max-width: 620px; max-height: 86vh; overflow: auto; }
+  .mesure-carte { max-width: 900px; max-height: 92vh; }
+  .nuancier-tete, .mesure-tete {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--e-3);
+  }
+  .nuancier-tete h2, .mesure-tete h2 {
+    font-size: var(--t-sous); text-transform: none; letter-spacing: 0; color: var(--ink);
+  }
   .nuancier-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(28px, 1fr)); gap: 3px; }
-  .nuancier-grille button { padding: 0; aspect-ratio: 1; border-radius: 4px; }
+  .nuancier-grille button { height: auto; padding: 0; aspect-ratio: 1; border-radius: var(--r-1); }
   .nuancier-roue { display: grid; grid-template-columns: repeat(24, 1fr); gap: 2px; }
-  .nuancier-roue button {
-    padding: 0; aspect-ratio: 1; border: none; border-radius: 2px; cursor: pointer;
-  }
+  .nuancier-roue button { height: auto; padding: 0; aspect-ratio: 1; border: none; border-radius: 2px; }
   .nuancier-grille button:hover, .nuancier-roue button:hover {
     outline: 2px solid var(--accent); outline-offset: 1px; position: relative; z-index: 1;
   }
   .nuancier-roue button.hors { visibility: hidden; }
 
-  /* ---------- Sélecteur de colorant avec recherche ---------- */
+  /* ==================== Sélecteur de colorant avec recherche ==================== */
+
   .combo { position: relative; }
-  .combo-champ { width: 100%; cursor: pointer; }
+  .combo-champ { cursor: pointer; }
   .combo-liste {
-    position: absolute; top: calc(100% + 3px); left: 0; right: 0; z-index: 40;
-    background: var(--card); border: 1px solid var(--hairline); border-radius: 6px;
-    max-height: 230px; overflow-y: auto; padding: 3px;
-    box-shadow: 0 8px 22px rgba(0,0,0,0.28);
+    position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 40;
+    background: var(--card); border: 1px solid var(--hairline-fort);
+    border-radius: var(--r-2); padding: var(--e-1);
+    box-shadow: var(--ombre-2);
+    max-height: 240px; overflow-y: auto;
   }
   .combo-option {
-    width: 100%; text-align: left; border: none; background: none;
-    border-radius: 4px; padding: 5px 7px; font-size: 13px;
-    display: flex; align-items: center; gap: 7px; cursor: pointer;
+    width: 100%; height: var(--h-ctl-s); padding: 0 var(--e-2);
+    justify-content: flex-start;
+    border: none; border-radius: var(--r-1); background: none;
+    color: var(--ink); text-align: left;
   }
-  .combo-option:hover, .combo-option.survol { background: var(--input-bg); color: var(--ink); }
-  .combo-option.choisi { color: var(--accent); }
-  .combo-sw {
-    width: 13px; height: 13px; border-radius: 3px; flex: none;
-    border: 1px solid rgba(0,0,0,.25);
-  }
+  .combo-option:hover, .combo-option.survol { background: var(--card-2); border: none; }
+  .combo-option.choisi { background: var(--accent-fond); color: var(--accent); }
+  .combo-sw { width: 13px; height: 13px; border-radius: 3px; flex: none; border: 1px solid rgb(0 0 0 / .25); }
   .combo-option .nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .combo-vide { padding: 8px 7px; font-size: 12px; color: var(--muted); }
+  .combo-vide { padding: var(--e-2); font-size: var(--t-note); color: var(--ink-3); }
 
-  /* ---------- Carte d'identité ---------- */
+  /* ==================== Carte d'identité ==================== */
+
   .id-grille {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 10px 14px;
+    gap: var(--e-3) var(--e-4);
   }
-  .id-grille label {
-    display: flex; flex-direction: column; gap: 3px;
-    font-size: 11px; font-weight: 600;
-    letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+  /* Onglets : une navigation, pas trois boutons alignés à droite */
+  .onglets { display: flex; border-bottom: 1px solid var(--hairline); margin-bottom: var(--e-4); }
+  .onglet {
+    height: 36px; padding: 0 var(--e-4);
+    border: none; border-radius: 0; background: none;
+    color: var(--ink-2); font: var(--t-dense)/1 var(--f-sys);
   }
-  .id-grille input { font-size: 13px; text-transform: none; letter-spacing: 0; }
-  .onglets { display: flex; gap: 6px; }
-  .essais-liste { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+  .onglet:hover { background: none; color: var(--ink); box-shadow: inset 0 -2px 0 var(--hairline-fort); }
+  .onglet[aria-selected="true"] { color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent-plein); }
+  .onglet .compte-essais {
+    font: var(--t-etiquette)/1 var(--f-mono); font-variant-numeric: tabular-nums; color: var(--ink-3);
+  }
+
+  .essais-liste { display: flex; flex-direction: column; gap: var(--e-3); margin-top: var(--e-4); }
   .essai {
-    border: 1px solid var(--hairline); border-radius: 8px;
-    padding: 12px 14px;
-    display: grid; grid-template-columns: 1fr 132px; gap: 12px;
+    border: 1px solid var(--hairline); border-radius: var(--r-3);
+    padding: var(--e-3) var(--e-4) var(--e-4);
+    display: grid; grid-template-columns: 1fr 132px; gap: var(--e-3);
   }
   @media (max-width: 620px) { .essai { grid-template-columns: 1fr; } }
-  .essai-champs { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .essai-champs { display: flex; flex-direction: column; gap: var(--e-2); min-width: 0; }
   .essai-champs .ligne-champs {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--e-2);
   }
-  .essai-champs label {
-    display: flex; flex-direction: column; gap: 3px;
-    font-size: 11px; color: var(--muted);
-  }
-  .essai-tete { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .essai-tete { display: flex; align-items: center; justify-content: space-between; gap: var(--e-2); }
   .essai-tete .num {
-    font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
-    text-transform: uppercase; color: var(--muted);
+    font: 600 var(--t-etiquette)/1.25 var(--f-sys);
+    letter-spacing: var(--pl-caps); text-transform: uppercase; color: var(--ink-3);
   }
-  .essai-photo { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+  .essai-photo { display: flex; flex-direction: column; gap: var(--e-1); align-items: stretch; }
   .essai-photo img {
     width: 100%; aspect-ratio: 1; object-fit: cover;
-    border-radius: 6px; border: 1px solid var(--hairline);
+    border-radius: var(--r-2); border: 1px solid var(--plan-bord);
+    background: var(--canvas-ground);
     cursor: zoom-in; display: block;
   }
   .photo-vide {
-    width: 100%; aspect-ratio: 1; border-radius: 6px;
-    border: 1px dashed var(--hairline);
+    width: 100%; aspect-ratio: 1; border-radius: var(--r-2);
+    border: 1px dashed var(--hairline-fort);
     display: flex; align-items: center; justify-content: center;
-    color: var(--muted); font-size: 11px; text-align: center; padding: 6px;
+    color: var(--ink-3); font-size: var(--t-etiquette); text-align: center; padding: var(--e-2);
   }
-  .essai-photo button { padding: 4px 8px; font-size: 11px; }
-  .essais-vide { color: var(--muted); font-size: 13px; margin: 14px 0 0; }
+  .essai-photo button { height: var(--h-ctl-s); font-size: var(--t-note); }
 
   #photo-plein {
     position: fixed; inset: 0; z-index: 140;
-    background: rgba(0,0,0,0.85);
+    background: rgb(0 0 0 / .85);
     display: flex; align-items: center; justify-content: center;
-    padding: 24px; cursor: zoom-out;
+    padding: var(--e-6); cursor: zoom-out;
   }
-  #photo-plein img { max-width: 100%; max-height: 100%; border-radius: 8px; }
+  #photo-plein img { max-width: 100%; max-height: 100%; border-radius: var(--r-3); }
 
-  /* ---------- Mesure CCM ---------- */
+  /* ==================== Mesure CCM ==================== */
+
   .rapport {
-    font-size: 13px; font-variant-numeric: tabular-nums;
-    display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+    font: var(--t-dense)/1.4 var(--f-sys); font-variant-numeric: tabular-nums;
+    display: flex; align-items: baseline; gap: var(--e-2); flex-wrap: wrap;
   }
-  .rapport b { color: var(--accent); font-size: 15px; }
-  .rapport .detail { color: var(--muted); font-size: 11px; }
-  #mesure {
-    position: fixed; inset: 0; z-index: 150;
-    background: rgba(0,0,0,0.72);
-    display: flex; align-items: center; justify-content: center; padding: 20px;
-  }
-  .mesure-carte {
-    background: var(--card); border: 1px solid var(--hairline); border-radius: 10px;
-    padding: 16px 18px; width: 100%; max-width: 900px;
-    max-height: 92vh; display: flex; flex-direction: column; gap: 10px;
-  }
-  .mesure-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-  .mesure-tete h2 { margin: 0; }
+  .rapport b { color: var(--accent); font: var(--t-sous)/1 var(--f-mono); }
+  .rapport .detail { color: var(--ink-3); font: var(--t-etiquette)/1 var(--f-mono); }
   .mesure-zone {
-    background: var(--canvas-ground); border-radius: 6px;
-    flex: 1; min-height: 0; overflow: hidden;
+    background: var(--canvas-ground); border: 1px solid var(--plan-bord);
+    border-radius: var(--r-1); flex: 1; min-height: 0; overflow: hidden;
   }
   #cv-mesure { width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
-  .mesure-pied { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .mesure-pied { display: flex; align-items: center; gap: var(--e-3); flex-wrap: wrap; }
   .mesure-pied .actions { margin-top: 0; }
-  button.seg-h.actif { border-color: #E8A33D; color: #E8A33D; }
-  button.seg-H.actif { border-color: #55C2E8; color: #55C2E8; }
+  /* Les cotes h et H sont des couleurs de donnée, pas d'interface */
+  button.seg-h.actif { background: rgb(232 163 61 / .16); border-color: #E8A33D; color: #E8A33D; }
+  button.seg-H.actif { background: rgb(85 194 232 / .16); border-color: #55C2E8; color: #55C2E8; }
 
-  /* ---------- Cartes graphiques ---------- */
-  main {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    align-content: start;
-  }
-  @media (max-width: 1240px) { main { grid-template-columns: 1fr; } }
+  /* ==================== Cartes et planches de mesure ==================== */
+
+  .pile { display: flex; flex-direction: column; gap: var(--e-4); }
   .card {
     background: var(--card);
     border: 1px solid var(--hairline);
-    border-radius: 8px;
-    padding: 14px 16px 16px;
+    border-radius: var(--r-3);
+    padding: var(--e-3) var(--e-4) var(--e-4);
     min-width: 0;
   }
-  .card.large { grid-column: 1 / -1; }
-  .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-  .card-head button { padding: 2px 10px; font-size: 11px; }
+  .card-head {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: var(--e-3); min-height: var(--h-ctl-s); margin-bottom: var(--e-3);
+  }
+  .card-head .outils { display: flex; gap: var(--e-1); align-items: center; }
+
+  /* La planche : sombre dans les deux thèmes ; en clair, montée sur un
+     passe-partout et bordée — un cadrage assumé, pas une rupture subie. */
+  .plan { background: var(--plan-mont); border-radius: var(--r-2); padding: var(--e-1); }
   .zone-canvas {
     background: var(--canvas-ground);
-    border-radius: 6px;
+    border: 1px solid var(--plan-bord);
+    border-radius: var(--r-1);
     overflow: hidden;
   }
   canvas { display: block; width: 100%; height: auto; }
-  #cv-roue { aspect-ratio: 1; }
-  #cv-lc { aspect-ratio: 10 / 7; }
-  .note { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+  #cv-spectre { aspect-ratio: 16 / 7; }
 
-  /* ---------- Quasi plein écran ---------- */
-  .card-head .outils { display: flex; gap: 6px; align-items: center; }
+  /* Vue Roue : deux planches qui prennent la hauteur, résultat en pied */
+  .grille-roue {
+    flex: 1; min-height: 0;
+    display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr auto;
+    gap: var(--e-4);
+  }
+  .grille-roue .card { display: flex; flex-direction: column; min-height: 0; }
+  .carte-roue { grid-row: span 2; }
+  .grille-roue .plan { flex: 1; min-height: 160px; display: flex; }
+  .grille-roue .zone-canvas { flex: 1; min-height: 0; }
+  .grille-roue canvas { height: 100%; }
+  @media (max-width: 1180px) {
+    .grille-roue {
+      flex: none; height: auto;
+      grid-template-columns: 1fr; grid-template-rows: none;
+    }
+    .carte-roue { grid-row: auto; }
+    .grille-roue .plan, .grille-roue .zone-canvas { flex: none; min-height: 0; display: block; }
+    .grille-roue canvas { height: auto; }
+    /* En une colonne, une planche carrée sur toute la largeur dépasserait la
+       hauteur de l'écran : on la borne, le tracé se recentre de lui-même. */
+    #cv-roue { aspect-ratio: 1; max-height: 62vh; }
+    #cv-lc { aspect-ratio: 10 / 7; max-height: 62vh; }
+  }
+
+  /* ==================== Quasi plein écran ==================== */
+
   .card.plein {
     position: fixed; inset: 0; z-index: 60;
     border-radius: 0; border: none; margin: 0;
     display: flex; flex-direction: column;
   }
+  .card.plein .plan { flex: 1; min-height: 0; display: flex; }
   .card.plein .zone-canvas { flex: 1; min-height: 0; }
-  .card.plein canvas { height: 100%; aspect-ratio: auto !important; }
-  body.a-plein { overflow: hidden; }
+  .card.plein canvas { height: 100%; aspect-ratio: auto; }
+  .card.plein .note { max-height: none; }
 </style>
 </head>
 <body>
 
 <div id="porte">
   <div class="porte-carte">
-    <h1>Roue chromatique CIE L*a*b*</h1>
-    <p class="note" id="porte-attente">Chargement…</p>
-    <div id="porte-form" hidden>
-      <p class="note">Accès réservé — connectez-vous.</p>
-      <input type="email" id="porte-email" placeholder="Email" autocomplete="email">
-      <input type="password" id="porte-mdp" placeholder="Mot de passe" autocomplete="current-password">
-      <div class="actions" style="margin-top:0"><button id="porte-connexion">Se connecter</button></div>
-      <p class="note" id="porte-msg" style="margin:0"></p>
+    <div class="porte-presentation">
+      <h1>Chromathèque</h1>
+      <p class="note" style="margin:0">Le registre des colorants, en coordonnées CIE L*a*b*.</p>
+      <ul>
+        <li>Roue a*/b* et plan luminosité / chroma, convertis en D65.</li>
+        <li>Mélange soustractif Kubelka-Munk : formule pesée et écart ΔE*ab.</li>
+        <li>Spectres d'absorption : A max, largeur de bande, force colorante.</li>
+        <li>Carte d'identité : fournisseur, Color Index, lot, essais et photos.</li>
+      </ul>
+    </div>
+    <div class="porte-saisie">
+      <h2>Connexion</h2>
+      <p class="note" id="porte-attente" style="margin:0">Chargement…</p>
+      <div id="porte-form" hidden>
+        <p class="note" style="margin:0">Accès réservé. Les comptes sont créés à la main.</p>
+        <label class="porte-champ">
+          <span>Adresse email</span>
+          <input type="email" id="porte-email" autocomplete="email">
+        </label>
+        <label class="porte-champ">
+          <span>Mot de passe</span>
+          <input type="password" id="porte-mdp" autocomplete="current-password">
+        </label>
+        <div class="actions" style="margin-top:0"><button id="porte-connexion" class="primaire">Se connecter</button></div>
+        <p class="note" id="porte-msg" style="margin:0" role="status"></p>
+      </div>
     </div>
   </div>
 </div>
 
-<header>
-  <h1>Roue chromatique CIE L*a*b*</h1>
-  <p>Palette en coordonnées Lab — roue a*/b*, plan luminosité/chroma, mélanges de colorants, spectres d'absorption et carte d'identité.</p>
+<div class="chassis">
+<header class="tete">
+  <button id="btn-tiroir" class="discret" title="Outils de la vue" aria-label="Afficher les outils de la vue">☰</button>
+  <span class="marque">Chromathèque</span>
+  <nav class="vues" role="tablist" aria-label="Affichage">
+    <button class="vue-onglet" role="tab" data-choix-vue="roue">Roue chromatique</button>
+    <button class="vue-onglet" role="tab" data-choix-vue="spectre">Analyse spectrale</button>
+    <button class="vue-onglet" role="tab" data-choix-vue="identite">Carte d'identité</button>
+  </nav>
+  <div class="tete-outils">
+    <button class="discret" data-surface="surf-bib">Bibliothèque</button>
+    <button class="discret" data-surface="surf-reglages">Réglages</button>
+    <span class="tete-sep"></span>
+    <button id="btn-theme" class="discret" title="Basculer le thème clair / sombre" aria-label="Basculer le thème">◐</button>
+    <button id="bloc-compte" class="discret" data-surface="surf-compte" hidden>Compte</button>
+  </div>
 </header>
 
 <div class="app">
   <aside>
-    <div class="choix-vue">
-      <label for="sel-vue">Affichage</label>
-      <select id="sel-vue">
-        <option value="roue">Roue chromatique</option>
-        <option value="spectre">Analyse spectrale</option>
-        <option value="identite">Carte d'identité</option>
-      </select>
-    </div>
-    <details class="bloc" data-vue="roue">
+    <details class="bloc" data-vue="roue" open>
       <summary><h2>Palette</h2><span class="badge" id="badge-palette"></span></summary>
       <div class="bloc-corps">
         <div class="pts" id="liste-points"></div>
         <div class="actions">
-          <button id="btn-ajouter">+ Ajouter un point</button>
+          <button id="btn-ajouter" class="primaire">+ Ajouter</button>
           <button id="btn-excel" title="Importer une palette depuis un fichier Excel (colonnes L, a, b)">Importer Excel</button>
-          <button id="btn-reset">Vider</button>
+          <button id="btn-reset" class="discret fin">Vider</button>
           <input type="file" id="fichier-excel" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
         </div>
-        <p class="note" id="excel-msg" hidden></p>
+        <p class="note" id="excel-msg" role="status"></p>
       </div>
     </details>
-    <details class="bloc" id="bloc-melange" data-vue="roue">
+    <details class="bloc" id="bloc-melange" data-vue="roue" open>
       <summary><h2>Mélange de colorants</h2><span class="badge" id="badge-melange"></span></summary>
       <div class="bloc-corps">
         <div id="mel-liste"></div>
         <div id="mel-ajout" style="margin-top:10px" aria-label="Ajouter un colorant au mélange"></div>
         <div class="actions">
           <button id="mel-depuis-palette" title="Reprendre toute la palette comme colorants">Toute la palette</button>
-          <button id="mel-vider">Vider</button>
+          <button id="mel-vider" class="discret">Vider</button>
+          <button id="mel-gamme" class="fin" title="Surligner sur la roue les teintes obtenables par mélange">Afficher la gamme</button>
         </div>
-        <p class="note" id="mel-msg" hidden></p>
-        <div class="actions">
-          <button id="mel-gamme" title="Surligner sur la roue les teintes obtenables par mélange">Afficher la gamme</button>
-        </div>
+        <p class="note" id="mel-msg" role="status"></p>
 
-        <p class="spc-sous-titre">Retrouver une formule</p>
+        <p class="sous-titre">Retrouver une formule</p>
         <div class="actions" style="margin-top:0">
           <button id="mel-cibler" title="Cliquer ensuite la teinte voulue sur la roue">🎯 Cibler sur la roue</button>
           <button id="mel-cible-nuancier">Au nuancier</button>
         </div>
-        <div class="spc-grille" style="margin-top:8px">
+        <div class="spc-grille" style="margin-top:12px">
           <label>Masse totale (g) <input type="number" id="mel-masse" min="0" step="any" value="100"></label>
         </div>
-        <div id="mel-formule"></div>
-      </div>
-    </details>
-    <details class="bloc" id="bloc-bib" data-vue="roue">
-      <summary><h2>Bibliothèque</h2><span class="badge" id="badge-bib"></span></summary>
-      <div class="bloc-corps">
-      <div id="bib-dossiers"></div>
-      <div class="actions">
-        <button id="btn-save">💾 Enregistrer</button>
-        <button id="btn-export" title="Télécharger la bibliothèque en JSON">Exporter</button>
-        <button id="btn-import" title="Charger un fichier JSON exporté">Importer</button>
-        <input type="file" id="fichier-import" accept="application/json,.json" hidden>
-      </div>
-      <div id="form-save">
-        <input type="text" id="save-nom" placeholder="Nom de la palette">
-        <select id="save-dossier" aria-label="Dossier de destination"></select>
-        <input type="text" id="save-nouveau" placeholder="Nom du nouveau dossier" hidden>
-        <div class="actions" style="margin-top:0">
-          <button id="save-ok">Enregistrer ici</button>
-          <button id="save-annuler">Annuler</button>
-        </div>
-      </div>
-      <p class="note" id="bib-note">Enregistré sur votre compte. Exportez le fichier JSON pour partager ou garder une copie.</p>
-      </div>
-    </details>
-    <details class="bloc" data-vue="roue">
-      <summary><h2>Réglages</h2></summary>
-      <div class="bloc-corps">
-      <div class="reglage">
-        <div class="ligne">
-          <label for="reg-lfond">Luminosité L* du fond de la roue</label>
-          <output id="out-lfond">70</output>
-        </div>
-        <input type="range" id="reg-lfond" min="5" max="95" step="1" value="70">
-      </div>
-      <div class="reglage">
-        <div class="ligne">
-          <label for="reg-cmax">Chroma max de la roue</label>
-          <output id="out-cmax">120</output>
-        </div>
-        <input type="range" id="reg-cmax" min="60" max="160" step="5" value="120">
-      </div>
       </div>
     </details>
     <details class="bloc" id="bloc-spectre" data-vue="spectre" open hidden>
       <summary><h2>Analyse spectrale</h2><span class="badge" id="badge-spectre"></span></summary>
       <div class="bloc-corps">
-        <p class="spc-sous-titre" style="margin-top:8px">Colorant</p>
+        <p class="sous-titre" style="margin-top:4px">Colorant</p>
         <div id="spc-colorant" aria-label="Colorant analysé"></div>
         <p class="note" id="spc-vide" hidden>Aucun colorant : ajoutez des couleurs dans le panneau « Palette » de la vue Roue chromatique.</p>
         <div id="spc-mesure" hidden>
-          <p class="spc-sous-titre">Mesure à importer</p>
+          <p class="sous-titre">Mesure à importer</p>
           <div class="spc-radio" role="radiogroup" aria-label="Type de mesure">
             <label><input type="radio" name="spc-type" value="echantillon" checked> Échantillon</label>
             <label><input type="radio" name="spc-type" value="reference"> Référence</label>
@@ -662,10 +917,10 @@
           </div>
           <p class="note" id="spc-conc">C = masse / volume</p>
           <div class="actions">
-            <button id="spc-importer" title="Fichier Excel : une colonne λ (nm), une colonne A">Importer le spectre (Excel)</button>
+            <button id="spc-importer" class="primaire" title="Fichier Excel : une colonne λ (nm), une colonne A">Importer le spectre (Excel)</button>
             <input type="file" id="spc-fichier" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
           </div>
-          <p class="note" id="spc-msg" hidden></p>
+          <p class="note" id="spc-msg" role="status"></p>
           <div id="spc-etat" style="margin-top:8px"></div>
         </div>
       </div>
@@ -673,76 +928,142 @@
     <details class="bloc" id="bloc-identite" data-vue="identite" open hidden>
       <summary><h2>Carte d'identité</h2><span class="badge" id="badge-identite"></span></summary>
       <div class="bloc-corps">
-        <p class="spc-sous-titre" style="margin-top:8px">Colorant</p>
+        <p class="sous-titre" style="margin-top:4px">Colorant</p>
         <div id="id-colorant" aria-label="Colorant"></div>
         <p class="note" id="id-vide" hidden>Aucun colorant : ajoutez des couleurs dans le panneau « Palette » de la vue Roue chromatique.</p>
-        <p class="note" id="id-msg" hidden></p>
-        <p class="note" style="margin-top:12px">Les colorants viennent tous de la palette : un même produit y porte son nom, et ici son identité, ses essais et ses spectres.</p>
+        <p class="note" id="id-msg" role="status"></p>
+        <p class="note">Les colorants viennent tous de la palette : un même produit y porte son nom, et ici son identité, ses essais et ses spectres.</p>
       </div>
     </details>
-    <details class="bloc" id="bloc-compte" hidden>
-      <summary><h2>Compte</h2></summary>
-      <div class="bloc-corps">
-        <p class="note" id="cpt-qui" style="margin:0 0 8px"></p>
-        <div class="actions" style="margin-top:0">
-          <button id="cpt-deconnexion">Se déconnecter</button>
-          <button id="cpt-supprimer" class="danger">Supprimer le compte</button>
-        </div>
-        <div id="confirm-suppr" hidden>
-          <p class="note">⚠️ Supprime définitivement le compte et toutes les palettes enregistrées. Cette action est irréversible.</p>
-          <div class="actions">
-            <button id="suppr-oui" class="danger-plein">Oui, tout supprimer</button>
-            <button id="suppr-non">Annuler</button>
-          </div>
-          <p class="note" id="suppr-msg" style="margin-top:8px"></p>
-        </div>
-      </div>
-    </details>
-    <div id="redim" title="Glisser pour redimensionner" role="separator" aria-orientation="vertical"></div>
   </aside>
 
   <main>
-    <section class="card" data-vue="roue">
-      <div class="card-head"><h2>Roue a* / b*</h2>
-        <div class="outils"><button data-png="cv-roue">PNG ↓</button><button data-plein title="Quasi plein écran">⛶</button></div>
-      </div>
-      <div class="zone-canvas"><canvas id="cv-roue"></canvas></div>
-      <p class="note">Survoler un point montre son étiquette, un clic la fixe. Glisser un point pour le déplacer, double-clic sur le fond pour en ajouter un. Chaque pixel est la conversion exacte Lab → sRGB à L* constant. Les carrés sont les colorants du mélange ; la zone laissée claire est l'ensemble des teintes que leur mélange permet d'atteindre.</p>
-    </section>
-
-    <section class="card" data-vue="roue">
-      <div class="card-head"><h2>Luminosité / chroma</h2>
-        <div class="outils"><button data-png="cv-lc">PNG ↓</button><button data-plein title="Quasi plein écran">⛶</button></div>
-      </div>
-      <div class="zone-canvas"><canvas id="cv-lc"></canvas></div>
-      <p class="note">Glisser un point pour changer sa luminosité et son chroma (à teinte constante). La silhouette de fond est la limite des couleurs visibles par l'œil (couleurs optimales de MacAdam, surfaces sous D65) — aucune couleur réelle ne peut exister à sa droite.</p>
-    </section>
-
-    <section class="card large" data-vue="spectre" hidden>
-      <div class="card-head"><h2>Spectre d'absorption</h2>
-        <div class="outils"><button data-png="cv-spectre">PNG ↓</button><button data-plein title="Quasi plein écran">⛶</button></div>
-      </div>
-      <div class="zone-canvas"><canvas id="cv-spectre"></canvas></div>
-      <div class="note" id="spc-resultats"></div>
-      <p class="note">A max est le sommet de la courbe ; la largeur de bande est mesurée à mi-hauteur (A max / 2) ; la force colorante compare l'échantillon à la référence : F = A max échantillon / A max référence × 100. La référence est tracée en retrait de l'échantillon.</p>
-    </section>
-
-    <section class="card large" data-vue="identite" hidden>
-      <div class="card-head"><h2 id="id-titre">Carte d'identité</h2></div>
-      <div id="id-general"></div>
-    </section>
-
-    <section class="card large" data-vue="identite" hidden>
-      <div class="card-head"><h2>Essais</h2>
-        <div class="outils onglets">
-          <button class="onglet actif" data-onglet="lumiere">Résistance à la lumière</button>
-          <button class="onglet" data-onglet="pvc">Migration PVC</button>
-          <button class="onglet" data-onglet="ccm">CCM</button>
+    <div class="grille-roue" data-vue="roue">
+      <section class="card carte-roue">
+        <div class="card-head"><h2>Roue a* / b*</h2>
+          <div class="outils"><button class="discret" data-png="cv-roue">PNG ↓</button><button class="discret" data-plein title="Quasi plein écran">⛶</button></div>
         </div>
-      </div>
-      <div id="essais-corps"></div>
-    </section>
+        <div class="plan"><div class="zone-canvas"><canvas id="cv-roue"></canvas></div></div>
+        <p class="note">Survoler un point montre son étiquette, un clic la fixe ; le glisser le déplace, double-clic sur le fond en ajoute un. Les carrés sont les colorants du mélange, la zone claire l'ensemble des teintes qu'ils permettent d'atteindre.</p>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2>Luminosité / chroma</h2>
+          <div class="outils"><button class="discret" data-png="cv-lc">PNG ↓</button><button class="discret" data-plein title="Quasi plein écran">⛶</button></div>
+        </div>
+        <div class="plan"><div class="zone-canvas"><canvas id="cv-lc"></canvas></div></div>
+        <p class="note">Glisser un point change sa luminosité et son chroma, à teinte constante. La silhouette de fond est la limite des couleurs visibles par l'œil (optimales de MacAdam, D65) : aucune couleur réelle n'existe à sa droite.</p>
+      </section>
+
+      <section class="card" id="carte-resultat">
+        <div class="card-head"><h2>Résultat du mélange</h2></div>
+        <div id="mel-formule"></div>
+      </section>
+    </div>
+
+    <div class="pile" data-vue="spectre" hidden>
+      <section class="card">
+        <div class="card-head"><h2>Spectre d'absorption</h2>
+          <div class="outils"><button class="discret" data-png="cv-spectre">PNG ↓</button><button class="discret" data-plein title="Quasi plein écran">⛶</button></div>
+        </div>
+        <div class="plan"><div class="zone-canvas"><canvas id="cv-spectre"></canvas></div></div>
+        <div class="note" id="spc-resultats"></div>
+        <p class="note">A max est le sommet de la courbe ; la largeur de bande est mesurée à mi-hauteur (A max / 2) ; la force colorante compare l'échantillon à la référence : F = A max échantillon / A max référence × 100. La référence est tracée en retrait de l'échantillon.</p>
+      </section>
+    </div>
+
+    <div class="pile" data-vue="identite" hidden>
+      <section class="card">
+        <div class="card-head"><h2 id="id-titre">Carte d'identité</h2></div>
+        <div id="id-general"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2>Essais</h2></div>
+        <div class="onglets" role="tablist" aria-label="Type d'essai">
+          <button class="onglet" role="tab" data-onglet="lumiere">Résistance à la lumière <span class="compte-essais"></span></button>
+          <button class="onglet" role="tab" data-onglet="pvc">Migration PVC <span class="compte-essais"></span></button>
+          <button class="onglet" role="tab" data-onglet="ccm">CCM <span class="compte-essais"></span></button>
+        </div>
+        <div id="essais-corps"></div>
+      </section>
+    </div>
   </main>
+
+  <div id="redim" title="Glisser pour redimensionner" role="separator" aria-orientation="vertical"></div>
+</div>
+</div>
+
+<div class="flottant" id="surf-bib" hidden>
+  <div class="flottant-carte">
+    <div class="flottant-tete">
+      <h2>Bibliothèque <span class="badge" id="badge-bib"></span></h2>
+      <button class="discret" data-fermer>Fermer</button>
+    </div>
+    <div id="bib-dossiers"></div>
+    <div class="actions">
+      <button id="btn-save" class="primaire">Enregistrer la palette</button>
+      <button id="btn-export" title="Télécharger la bibliothèque en JSON">Exporter</button>
+      <button id="btn-import" title="Charger un fichier JSON exporté">Importer</button>
+      <input type="file" id="fichier-import" accept="application/json,.json" hidden>
+    </div>
+    <div id="form-save">
+      <input type="text" id="save-nom" placeholder="Nom de la palette">
+      <select id="save-dossier" aria-label="Dossier de destination"></select>
+      <input type="text" id="save-nouveau" placeholder="Nom du nouveau dossier" hidden>
+      <div class="actions" style="margin-top:0">
+        <button id="save-ok" class="primaire">Enregistrer ici</button>
+        <button id="save-annuler" class="discret">Annuler</button>
+      </div>
+    </div>
+    <p class="note" id="bib-note">Enregistré sur votre compte. Exportez le fichier JSON pour partager ou garder une copie.</p>
+  </div>
+</div>
+
+<div class="flottant" id="surf-reglages" hidden>
+  <div class="flottant-carte">
+    <div class="flottant-tete">
+      <h2>Réglages</h2>
+      <button class="discret" data-fermer>Fermer</button>
+    </div>
+    <div class="reglage">
+      <div class="ligne">
+        <label for="reg-lfond">Luminosité L* du fond de la roue</label>
+        <output id="out-lfond">70</output>
+      </div>
+      <input type="range" id="reg-lfond" min="5" max="95" step="1" value="70">
+    </div>
+    <div class="reglage">
+      <div class="ligne">
+        <label for="reg-cmax">Chroma max de la roue</label>
+        <output id="out-cmax">120</output>
+      </div>
+      <input type="range" id="reg-cmax" min="60" max="160" step="5" value="120">
+    </div>
+    <p class="note">Ces deux réglages ne portent que sur le fond de la roue : ils ne modifient aucune couleur de la palette.</p>
+  </div>
+</div>
+
+<div class="flottant" id="surf-compte" hidden>
+  <div class="flottant-carte">
+    <div class="flottant-tete">
+      <h2>Compte</h2>
+      <button class="discret" data-fermer>Fermer</button>
+    </div>
+    <p class="note" id="cpt-qui" style="margin:0"></p>
+    <div class="actions">
+      <button id="cpt-deconnexion">Se déconnecter</button>
+      <button id="cpt-supprimer" class="danger fin">Supprimer le compte</button>
+    </div>
+    <div id="confirm-suppr" hidden>
+      <p class="note">⚠️ Supprime définitivement le compte et toutes les palettes enregistrées. Cette action est irréversible.</p>
+      <div class="actions">
+        <button id="suppr-oui" class="danger-plein">Oui, tout supprimer</button>
+        <button id="suppr-non" class="discret">Annuler</button>
+      </div>
+      <p class="note" id="suppr-msg" role="status"></p>
+    </div>
+  </div>
 </div>
 
 <div id="photo-plein" hidden><img id="photo-plein-img" alt="Photo d'essai"></div>
@@ -774,10 +1095,10 @@
     </div>
     <p class="note" id="nuancier-note" style="margin:0"></p>
     <div id="nuancier-zone-palette" hidden>
-      <p class="spc-sous-titre" style="margin-top:4px">Nuances de la palette</p>
+      <p class="sous-titre" style="margin-top:4px">Nuances de la palette</p>
       <div class="nuancier-grille" id="nuancier-palette"></div>
     </div>
-    <p class="spc-sous-titre">Toutes les nuances de la roue</p>
+    <p class="sous-titre">Toutes les nuances de la roue</p>
     <div class="reglage">
       <div class="ligne">
         <label for="nuancier-l">Luminosité L*</label>
@@ -1579,6 +1900,22 @@ function texteFormule() {
   return lignes.join('\n');
 }
 
+/* Un état vide dit ce qui manque et propose l'action qui le comble. */
+function etatVide(zone, titre, texte) {
+  const d = document.createElement('div');
+  d.className = 'vide';
+  const b = document.createElement('b');
+  b.textContent = titre;
+  const p = document.createElement('p');
+  p.textContent = texte;
+  d.append(b, p);
+  zone.appendChild(d);
+  return d;
+}
+
+/* Les proportions restent dans la colonne ; le résultat pesé va dans la carte
+   du contenu principal, sous le plan luminosité / chroma — là où le regard
+   est déjà posé. */
 function rendreFormule() {
   const zone = document.getElementById('mel-formule');
   zone.textContent = '';
@@ -1588,10 +1925,26 @@ function rendreFormule() {
     zone.appendChild(el);
     return el;
   };
-  if (!melange.cible) { p('Choisissez une teinte cible pour obtenir la formule.'); return; }
-  if (!melange.colorants.length) { p('Ajoutez au moins un colorant pour calculer la formule.'); return; }
+  if (!melange.colorants.length) {
+    etatVide(zone, 'Aucun colorant dans le mélange',
+      'Ajoutez des colorants depuis la palette : la roue montrera alors l’ensemble des teintes que leur mélange permet d’atteindre.');
+    return;
+  }
+  if (!melange.cible) {
+    const d = etatVide(zone, 'Aucune teinte cible',
+      'Désignez la teinte à reproduire pour obtenir la formule pesée et l’écart à la cible.');
+    const b = document.createElement('button');
+    b.className = 'primaire';
+    b.textContent = '🎯 Cibler sur la roue';
+    b.addEventListener('click', () => document.getElementById('mel-cibler').click());
+    d.appendChild(b);
+    return;
+  }
   const sol = melange.solution;
-  if (!sol) { p('Formule indisponible.'); return; }
+  if (!sol) {
+    etatVide(zone, 'Formule indisponible', 'Le calcul n’a rien renvoyé pour cette cible.');
+    return;
+  }
 
   const bloc = document.createElement('div');
   bloc.className = 'formule';
@@ -1617,22 +1970,47 @@ function rendreFormule() {
     tr.append(tdN, tdP, tdM);
     tbody.appendChild(tr);
   });
+  const entete = document.createElement('div');
+  entete.className = 'ecart';
+  entete.style.margin = '0 0 8px';
+  entete.style.padding = '0';
+  entete.style.borderTop = 'none';
+  const pour = document.createElement('span');
+  pour.className = 'etiquette';
+  pour.textContent = `Formule pour ${melange.masse} g — ${melange.cible.nom}`;
+  const nb = document.createElement('span');
+  nb.className = 'note';
+  nb.style.margin = '0';
+  nb.textContent = `${melange.colorants.length} colorant${melange.colorants.length > 1 ? 's' : ''}`;
+  entete.append(pour, nb);
+  bloc.appendChild(entete);
+
   table.append(thead, tbody);
   bloc.appendChild(table);
   zone.appendChild(bloc);
 
-  p(`Profondeur de nuance : × ${sol.profondeur.toFixed(2)} (concentration totale rapportée aux colorants tels que renseignés).`);
-  const ecart = p(`Écart à la cible : ΔE*ab = ${sol.deltaE.toFixed(2)} — ${
-    sol.deltaE < 1 ? 'teinte reproduite fidèlement'
-    : sol.deltaE < 3 ? 'écart faible, visible à l’œil exercé'
-    : sol.deltaE < 6 ? 'écart net : la cible est en limite de gamme'
-    : 'cible hors de portée de ces colorants — meilleure approximation'}.`);
-  ecart.style.marginBottom = '8px';
+  // L'écart à la cible est ce qu'on vient vérifier : c'est la ligne la plus
+  // lisible du tableau.
+  const ecart = document.createElement('div');
+  ecart.className = 'ecart';
+  const libelle = document.createElement('span');
+  libelle.className = 'etiquette';
+  libelle.textContent = 'Écart à la cible';
+  const valeur = document.createElement('b');
+  valeur.textContent = `ΔE*ab ${sol.deltaE.toFixed(2)}`;
+  ecart.append(libelle, valeur);
+  zone.appendChild(ecart);
+
+  p(`${sol.deltaE < 1 ? 'Teinte reproduite fidèlement'
+    : sol.deltaE < 3 ? 'Écart faible, visible à l’œil exercé'
+    : sol.deltaE < 6 ? 'Écart net : la cible est en limite de gamme'
+    : 'Cible hors de portée de ces colorants — meilleure approximation'}. Profondeur de nuance : × ${sol.profondeur.toFixed(2)} (concentration totale rapportée aux colorants tels que renseignés).`);
 
   const actions = document.createElement('div');
   actions.className = 'actions';
   actions.style.marginTop = '0';
   const copier = document.createElement('button');
+  copier.className = 'primaire';
   copier.textContent = 'Copier la formule';
   copier.addEventListener('click', () => {
     navigator.clipboard.writeText(texteFormule())
@@ -2003,43 +2381,126 @@ cvLc.addEventListener('pointerleave', () => {
 
 const listeEl = document.getElementById('liste-points');
 
+/* La palette se lit en lignes de 34 px — pastille, nom, L / a / b tabulaires,
+   chaque nombre dans sa colonne — et un seul colorant s'ouvre à la fois : la
+   ligne sélectionnée devient le formulaire, et elle seule. Trente colorants se
+   balayent alors, là où trente cartes de cinq champs ouvertes en permanence
+   demandaient de défiler. */
+let pointOuvert = null;          // identifiant du colorant en cours d'édition
+
+function pastillePoint(p) {
+  const sw = document.createElement('span');
+  sw.className = 'sw';
+  sw.style.background = rgbToCss(labToRgb(p.L, p.a, p.b));
+  return sw;
+}
+/* Les nombres sont affichés à la française, au dixième : c'est la précision
+   que porte le canvas, et l'unité de comparaison entre deux lignes. */
+function nombreLigne(v) {
+  return v.toFixed(1).replace('.', ',').replace('-', '−');
+}
+
+function ligneFermee(p) {
+  const div = document.createElement('div');
+  div.className = 'pt';
+  div.tabIndex = 0;
+  div.setAttribute('role', 'button');
+  div.title = 'Modifier ce colorant';
+  const nom = document.createElement('span');
+  nom.className = 'nom';
+  nom.textContent = p.nom;
+  div.append(pastillePoint(p), nom);
+  ['L', 'a', 'b'].forEach(cle => {
+    const n = document.createElement('span');
+    n.className = 'num';
+    n.textContent = nombreLigne(p[cle]);
+    div.appendChild(n);
+  });
+  const ouvrir = () => { pointOuvert = p.id; rendreListe(); };
+  div.addEventListener('click', ouvrir);
+  div.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ouvrir(); }
+  });
+  return div;
+}
+
+function ligneOuverte(p, i) {
+  const div = document.createElement('div');
+  div.className = 'pt ouvert';
+
+  const haut = document.createElement('div');
+  haut.className = 'pt-top';
+  const sw = pastillePoint(p);
+  sw.style.cursor = 'pointer';
+  sw.title = 'Replier ce colorant';
+  sw.addEventListener('click', () => { pointOuvert = null; rendreListe(); });
+  const nomInp = document.createElement('input');
+  nomInp.type = 'text';
+  nomInp.value = p.nom;
+  nomInp.setAttribute('aria-label', 'Nom du colorant');
+  nomInp.addEventListener('input', () => { p.nom = nomInp.value; majTout(false); });
+  const epingle = document.createElement('button');
+  epingle.className = 'epingle' + (p.fixe ? ' actif' : '');
+  epingle.textContent = '◎';
+  epingle.title = 'Afficher / masquer l’étiquette sur la roue';
+  epingle.setAttribute('aria-label', 'Épingler l’étiquette');
+  epingle.addEventListener('click', () => { p.fixe = !p.fixe; majTout(false); rendreListe(); });
+  const sup = document.createElement('button');
+  sup.className = 'suppr';
+  sup.textContent = '✕';
+  sup.title = 'Supprimer ce colorant';
+  armerSuppr(sup, () => { points.splice(i, 1); pointOuvert = null; majTout(true); });
+  haut.append(sw, nomInp, epingle, sup);
+
+  const nums = document.createElement('div');
+  nums.className = 'pt-nums';
+  [['L', 0, 100], ['a', -128, 127], ['b', -128, 127]].forEach(([cle, min, max]) => {
+    const lab = document.createElement('label');
+    const titre = document.createElement('span');
+    titre.textContent = cle + '*';
+    const inp = document.createElement('input');
+    inp.type = 'number';
+    inp.min = min; inp.max = max; inp.step = 1;
+    inp.value = p[cle];
+    inp.addEventListener('input', () => {
+      const v = parseFloat(inp.value);
+      if (!Number.isNaN(v)) { p[cle] = v; majTout(false); }
+    });
+    lab.append(titre, inp);
+    nums.appendChild(lab);
+  });
+
+  const hex = document.createElement('div');
+  hex.className = 'pt-hex';
+  hex.textContent = rgbToHex(labToRgb(p.L, p.a, p.b));
+
+  div.append(haut, nums, hex);
+  return div;
+}
+
 function rendreListe() {
-  document.getElementById('badge-palette').textContent = points.length;
+  document.getElementById('badge-palette').textContent = points.length || '';
   listeEl.textContent = '';
+  if (!points.length) {
+    const p = document.createElement('p');
+    p.className = 'mel-vide';
+    p.textContent = 'Palette vide — ajoutez un colorant ou importez un fichier Excel.';
+    listeEl.appendChild(p);
+    return;
+  }
+  // L'en-tête partage la grille des lignes : les colonnes s'alignent au chiffre.
+  const tete = document.createElement('div');
+  tete.className = 'pts-tete';
+  ['', 'COLORANT', 'L*', 'a*', 'b*'].forEach((t, k) => {
+    const s = document.createElement('span');
+    s.textContent = t;
+    if (k > 1) s.className = 'r';
+    tete.appendChild(s);
+  });
+  listeEl.appendChild(tete);
+  if (pointOuvert && !points.some(p => p.id === pointOuvert)) pointOuvert = null;
   points.forEach((p, i) => {
-    const rgb = labToRgb(p.L, p.a, p.b);
-    const div = document.createElement('div');
-    div.className = 'pt';
-    div.innerHTML = `
-      <div class="pt-top">
-        <span class="sw" style="background:${rgbToCss(rgb)}"></span>
-        <input type="text" value="" aria-label="Nom du point">
-        <button class="epingle${p.fixe ? ' actif' : ''}" title="Afficher / masquer l'étiquette" aria-label="Épingler l'étiquette">📌</button>
-        <button class="suppr" title="Supprimer" aria-label="Supprimer ce point">✕</button>
-      </div>
-      <div class="pt-nums">
-        <label>L <input type="number" min="0" max="100" step="1" value="${p.L}"></label>
-        <label>a <input type="number" min="-128" max="127" step="1" value="${p.a}"></label>
-        <label>b <input type="number" min="-128" max="127" step="1" value="${p.b}"></label>
-        <code>${rgbToHex(rgb)}</code>
-      </div>`;
-    const [nomInp] = div.querySelectorAll('input[type="text"]');
-    nomInp.value = p.nom;
-    const nums = div.querySelectorAll('input[type="number"]');
-    nomInp.addEventListener('input', () => { p.nom = nomInp.value; majTout(false); });
-    ['L', 'a', 'b'].forEach((cle, k) => {
-      nums[k].addEventListener('input', () => {
-        const v = parseFloat(nums[k].value);
-        if (!Number.isNaN(v)) { p[cle] = v; majTout(false); }
-      });
-    });
-    div.querySelector('.epingle').addEventListener('click', () => {
-      p.fixe = !p.fixe; majTout(false);
-    });
-    div.querySelector('.suppr').addEventListener('click', () => {
-      points.splice(i, 1); majTout(true);
-    });
-    listeEl.appendChild(div);
+    listeEl.appendChild(p.id === pointOuvert ? ligneOuverte(p, i) : ligneFermee(p));
   });
 }
 
@@ -2465,6 +2926,9 @@ document.addEventListener('keydown', e => {
   if (!mesureEl.hidden) { fermerMesure(); return; }
   if (!photoPlein.hidden) { photoPlein.hidden = true; return; }
   if (!nuancierEl.hidden) { fermerNuancier(); return; }
+  if (document.querySelector('.flottant:not([hidden])')) { fermerSurfaces(); return; }
+  if (asideEl.hasAttribute('data-ouvert')) { fermerTiroir(); return; }
+  if (pointOuvert) { pointOuvert = null; rendreListe(); return; }
   if (melange.modeCible) {
     melange.modeCible = false;
     cvRoue.style.cursor = '';
@@ -3166,36 +3630,48 @@ function rendreGeneral() {
 function rendreEssais() {
   const zone = document.getElementById('essais-corps');
   zone.textContent = '';
-  document.querySelectorAll('.onglet').forEach(b =>
-    b.classList.toggle('actif', b.dataset.onglet === ongletActif));
+  // Les onglets sont une navigation : ils portent aria-selected et le nombre
+  // d'essais déjà enregistrés dans chaque catégorie.
   const col = colorantActif();
+  document.querySelectorAll('.onglet').forEach(b => {
+    b.setAttribute('aria-selected', String(b.dataset.onglet === ongletActif));
+    const n = col ? col.essais[b.dataset.onglet].length : 0;
+    b.querySelector('.compte-essais').textContent = n || '';
+  });
   if (!col) return;
 
   const type = ongletActif, def = ONGLETS[type];
   const liste = col.essais[type];
 
-  const actions = document.createElement('div');
-  actions.className = 'actions';
-  const ajouter = document.createElement('button');
-  ajouter.textContent = '+ Ajouter un essai';
-  ajouter.addEventListener('click', () => {
+  const ajouterEssai = () => {
     if (liste.length >= MAX_ESSAIS) { messageIdentite(`${MAX_ESSAIS} essais au maximum.`); return; }
     liste.push(normaliserEssai({
       date: new Date().toISOString().slice(0, 10),
       nom: `${def.titre} ${liste.length + 1}`
     }));
     majIdentite();
-  });
-  actions.appendChild(ajouter);
-  zone.appendChild(actions);
+  };
 
   if (!liste.length) {
-    const p = document.createElement('p');
-    p.className = 'essais-vide';
-    p.textContent = `Aucun essai de ${def.titre.toLowerCase()} enregistré pour ${nomColorantActif()}.`;
-    zone.appendChild(p);
+    const d = etatVide(zone, `Aucun essai de ${def.titre.toLowerCase()}`,
+      `Les essais de ${nomColorantActif()} apparaîtront ici, avec leur date, leur notation et leur photo.`);
+    const b = document.createElement('button');
+    b.className = 'primaire';
+    b.textContent = '+ Ajouter un essai';
+    b.addEventListener('click', ajouterEssai);
+    d.appendChild(b);
     return;
   }
+
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+  actions.style.marginTop = '0';
+  const ajouter = document.createElement('button');
+  ajouter.className = 'primaire';
+  ajouter.textContent = '+ Ajouter un essai';
+  ajouter.addEventListener('click', ajouterEssai);
+  actions.appendChild(ajouter);
+  zone.appendChild(actions);
 
   const conteneur = document.createElement('div');
   conteneur.className = 'essais-liste';
@@ -3477,24 +3953,94 @@ creerComboColorant(document.getElementById('id-colorant'), {
   placeholder: 'Rechercher un colorant…'
 });
 
-/* ==================== Sélecteur d'affichage ==================== */
+/* ==================== Sélecteur d'affichage ====================
+   Changer de vue est une navigation : elle vit dans l'en-tête, là où on la
+   cherche, et non dans un menu enfoui en tête de colonne. La colonne, elle,
+   ne garde que les outils de la vue courante.
+   `data-vue` peut lister plusieurs vues séparées par une espace. */
 
-const selVue = document.getElementById('sel-vue');
 const VUES = ['roue', 'spectre', 'identite'];
-/* `data-vue` peut lister plusieurs vues séparées par une espace. */
-function appliquerVue() {
-  const vue = selVue.value;
-  document.querySelectorAll('[data-vue]').forEach(el => {
-    el.hidden = !el.dataset.vue.split(/\s+/).includes(vue);
-  });
-  try { localStorage.setItem('rouelab.vue', vue); } catch (e) {}
-  requestAnimationFrame(redessiner);
-}
-selVue.addEventListener('change', appliquerVue);
+let vueCourante = 'roue';
 try {
   const v = localStorage.getItem('rouelab.vue');
-  if (VUES.includes(v)) selVue.value = v;
-} catch (e) {}
+  if (VUES.includes(v)) vueCourante = v;
+} catch (e) { /* pas de préférence */ }
+
+function appliquerVue() {
+  document.querySelectorAll('[data-vue]').forEach(el => {
+    el.hidden = !el.dataset.vue.split(/\s+/).includes(vueCourante);
+  });
+  document.querySelectorAll('[data-choix-vue]').forEach(b => {
+    b.setAttribute('aria-selected', String(b.dataset.choixVue === vueCourante));
+  });
+  try { localStorage.setItem('rouelab.vue', vueCourante); } catch (e) {}
+  requestAnimationFrame(redessiner);
+}
+document.querySelectorAll('[data-choix-vue]').forEach(b => {
+  b.addEventListener('click', () => {
+    vueCourante = b.dataset.choixVue;
+    fermerTiroir();
+    appliquerVue();
+  });
+});
+
+/* ==================== Surfaces flottantes ====================
+   Bibliothèque, Réglages et Compte ne dépendent d'aucune vue : les garder
+   dans la colonne mettait sept panneaux au même niveau visuel. Ils s'ouvrent
+   maintenant depuis l'en-tête. */
+
+function ouvrirSurface(id) {
+  document.querySelectorAll('.flottant').forEach(s => { s.hidden = s.id !== id; });
+}
+function fermerSurfaces() {
+  document.querySelectorAll('.flottant').forEach(s => { s.hidden = true; });
+}
+document.querySelectorAll('[data-surface]').forEach(b => {
+  b.addEventListener('click', () => ouvrirSurface(b.dataset.surface));
+});
+document.querySelectorAll('.flottant').forEach(s => {
+  s.addEventListener('click', e => { if (e.target === s) fermerSurfaces(); });
+  s.querySelectorAll('[data-fermer]').forEach(b => b.addEventListener('click', fermerSurfaces));
+});
+
+/* ==================== Tiroir de la colonne (tablette) ==================== */
+
+const asideEl = document.querySelector('aside');
+function fermerTiroir() { asideEl.removeAttribute('data-ouvert'); }
+document.getElementById('btn-tiroir').addEventListener('click', () => {
+  asideEl.toggleAttribute('data-ouvert');
+});
+/* Le tiroir recouvre le contenu : le premier geste dessus le referme, comme
+   un clic hors panneau. En bureau l'attribut n'est jamais posé, donc inerte. */
+document.querySelector('main').addEventListener('pointerdown', e => {
+  if (asideEl.hasAttribute('data-ouvert')) { fermerTiroir(); e.stopPropagation(); }
+}, true);
+
+/* ==================== Thème ====================
+   Trois états : préférence du système (aucun attribut), clair, sombre. Les
+   surfaces canvas restent sombres dans tous les cas — une couleur ne se juge
+   pas sur un fond qui change. */
+
+const btnTheme = document.getElementById('btn-theme');
+function appliquerTheme(t) {
+  if (t) document.documentElement.setAttribute('data-theme', t);
+  else document.documentElement.removeAttribute('data-theme');
+  btnTheme.title = t === 'light' ? 'Thème clair — cliquer pour le sombre'
+    : t === 'dark' ? 'Thème sombre — cliquer pour suivre le système'
+    : 'Thème du système — cliquer pour le clair';
+  try {
+    if (t) localStorage.setItem('rouelab.theme', t);
+    else localStorage.removeItem('rouelab.theme');
+  } catch (e) { /* préférence non mémorisée */ }
+}
+try {
+  const t = localStorage.getItem('rouelab.theme');
+  appliquerTheme(t === 'light' || t === 'dark' ? t : null);
+} catch (e) { appliquerTheme(null); }
+btnTheme.addEventListener('click', () => {
+  const t = document.documentElement.getAttribute('data-theme');
+  appliquerTheme(t === 'light' ? 'dark' : t === 'dark' ? null : 'light');
+});
 
 /* ==================== Orchestration ==================== */
 
@@ -3504,14 +4050,21 @@ function majTout(refaireListe) {
   sauverPoints();
   if (refaireListe) rendreListe();
   else {
-    // Rafraîchit pastilles, hex, épingles et champs (hors champ en cours d'édition)
+    // Rafraîchit pastilles, nombres, hex et épingle (hors champ en cours
+    // d'édition). Les lignes fermées portent des `.num`, la ligne ouverte des
+    // champs numériques et son hex : chaque sélecteur est donc facultatif.
     listeEl.querySelectorAll('.pt').forEach((el, i) => {
       const p = points[i];
       if (!p) return;
       const rgb = labToRgb(p.L, p.a, p.b);
       el.querySelector('.sw').style.background = rgbToCss(rgb);
-      el.querySelector('code').textContent = rgbToHex(rgb);
-      el.querySelector('.epingle').classList.toggle('actif', !!p.fixe);
+      const hex = el.querySelector('.pt-hex');
+      if (hex) hex.textContent = rgbToHex(rgb);
+      const epingle = el.querySelector('.epingle');
+      if (epingle) epingle.classList.toggle('actif', !!p.fixe);
+      el.querySelectorAll('.num').forEach((n, k) => {
+        n.textContent = nombreLigne(p[['L', 'a', 'b'][k]]);
+      });
       el.querySelectorAll('input[type="number"]').forEach((inp, k) => {
         if (inp !== document.activeElement) inp.value = p[['L', 'a', 'b'][k]];
       });
