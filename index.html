@@ -467,18 +467,26 @@
   .dossier summary .compte { font: var(--t-etiquette)/1 var(--f-mono); color: var(--ink-3); }
   .pal-ligne {
     display: flex; align-items: center; gap: var(--e-2);
-    height: 34px; padding: 0 var(--e-2) 0 var(--e-5);
+    min-height: 40px; padding: var(--e-1) var(--e-2) var(--e-1) var(--e-5);
     border-radius: var(--r-1);
   }
   .pal-ligne:hover { background: var(--card-2); }
   .apercu { display: flex; gap: 2px; flex: none; }
   .apercu i { width: 10px; height: 10px; border-radius: 2px; }
+  .pal-bloc { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
   .pal-nom {
-    flex: 1; height: auto; padding: 0; justify-content: flex-start;
+    height: auto; padding: 0; justify-content: flex-start;
     background: none; border: none; color: var(--ink);
     font-size: var(--t-dense); text-align: left;
   }
   .pal-nom:hover { background: none; border: none; color: var(--accent); }
+  /* Charger n'est pas destructeur mais remplace tout le travail en cours :
+     l'état armé emprunte l'accent, pas le rouge du destructif. */
+  .pal-nom.confirme { color: var(--accent); font-weight: 600; }
+  .pal-resume {
+    font: var(--t-etiquette)/1.3 var(--f-mono);
+    font-variant-numeric: tabular-nums; color: var(--ink-3);
+  }
   .bib-vide { color: var(--ink-3); font-size: var(--t-note); margin: 0; }
   #form-save {
     display: none; flex-direction: column; gap: var(--e-2);
@@ -1030,13 +1038,13 @@
     </div>
     <div id="bib-dossiers"></div>
     <div class="actions">
-      <button id="btn-save" class="primaire">Enregistrer la palette</button>
+      <button id="btn-save" class="primaire">Enregistrer l'étude</button>
       <button id="btn-export" title="Télécharger la bibliothèque en JSON">Exporter</button>
       <button id="btn-import" title="Charger un fichier JSON exporté">Importer</button>
       <input type="file" id="fichier-import" accept="application/json,.json" hidden>
     </div>
     <div id="form-save">
-      <input type="text" id="save-nom" placeholder="Nom de la palette">
+      <input type="text" id="save-nom" placeholder="Nom de l'étude">
       <select id="save-dossier" aria-label="Dossier de destination"></select>
       <input type="text" id="save-nouveau" placeholder="Nom du nouveau dossier" hidden>
       <div class="actions" style="margin-top:0">
@@ -1044,7 +1052,7 @@
         <button id="save-annuler" class="discret">Annuler</button>
       </div>
     </div>
-    <p class="note" id="bib-note">Enregistré sur votre compte. Exportez le fichier JSON pour partager ou garder une copie.</p>
+    <p class="note" id="bib-note">Une étude enregistre la palette, les colorants (identité, essais, photos, spectres) et le mélange. Elle vit sur votre compte ; l'export JSON en fait une copie complète.</p>
   </div>
 </div>
 
@@ -1453,18 +1461,68 @@ function rafraichirCombos() {
   }
 }
 /* Assainit un dossier de bibliothèque venu d'une source non fiable. */
+/* ---------- Étude : l'unité qu'enregistre la Bibliothèque ----------
+   Une étude est tout le travail attaché à une palette — la palette elle-même,
+   les colorants qui la référencent (identité, essais, photos, spectres) et le
+   mélange en cours. Les séparer n'avait pas de sens : les analyses ne gardent
+   qu'un `id` de point, une palette sauvée seule laisse ses analyses derrière.
+
+   Le stockage suit cette unité. Le document racine `bibliotheques/{uid}` ne
+   porte que l'index (nom, date, aperçu, résumé) ; chaque étude vit dans son
+   propre document `bibliotheques/{uid}/etudes/{id}` et dispose donc de son
+   propre budget de 1 Mio — sans quoi trois photos d'essai suffiraient à
+   saturer la bibliothèque entière. */
+function normaliserEtude(o) {
+  const e = (o && typeof o === 'object') ? o : {};
+  const points = normaliserPoints(e.points);
+  const connus = new Set(points.map(p => p.id));
+  // Une étude ne doit porter aucune référence morte : ni un colorant ni un
+  // constituant de mélange dont le point aurait quitté la palette. C'est la
+  // règle que `synchroniserColorants` applique à l'état vivant.
+  const melange = normaliserMelange(e.melange);
+  melange.colorants = melange.colorants.filter(id => connus.has(id));
+  return {
+    points,
+    colorants: normaliserColorants(e.colorants).filter(c => c.id && connus.has(c.id)),
+    actif: typeof e.actif === 'string' && connus.has(e.actif)
+      ? e.actif : (points[0] ? points[0].id : ''),
+    melange
+  };
+}
+
+/* Entrée d'index : assez pour dresser la liste sans lire toutes les études. */
+function normaliserEntree(p) {
+  const o = (p && typeof p === 'object') ? p : {};
+  const r = (o.resume && typeof o.resume === 'object') ? o.resume : {};
+  const e = {
+    id: typeof o.id === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(o.id) ? o.id : '',
+    nom: texteBorne(o.nom ?? 'Sans titre', 120),
+    date: dateBornee(o.date),
+    apercu: normaliserPoints(o.apercu).slice(0, 5),
+    resume: {
+      colorants: nombreBorne(r.colorants, 0, 1e5, 0),
+      essais: nombreBorne(r.essais, 0, 1e5, 0),
+      photos: nombreBorne(r.photos, 0, 1e5, 0)
+    }
+  };
+  // Compatibilité : les entrées d'avant portaient la palette en clair dans
+  // l'index, sans document séparé. On continue de les lire telles quelles ;
+  // elles deviennent des études complètes au premier réenregistrement.
+  if (Array.isArray(o.points)) {
+    e.points = normaliserPoints(o.points);
+    if (!e.apercu.length) e.apercu = e.points.slice(0, 5);
+  }
+  return e;
+}
+
 function normaliserDossiers(arr) {
   if (!Array.isArray(arr)) return [];
   return arr
-    .filter(d => d && Array.isArray(d.palettes))
+    .filter(d => d && (Array.isArray(d.etudes) || Array.isArray(d.palettes)))
     .map(d => ({
-      nom: typeof d.nom === 'string' ? d.nom : String(d.nom ?? 'Dossier'),
+      nom: texteBorne(d.nom ?? 'Dossier', 120),
       ouvert: d.ouvert !== false,
-      palettes: d.palettes.map(p => ({
-        nom: typeof p.nom === 'string' ? p.nom : String(p.nom ?? 'Sans titre'),
-        date: typeof p.date === 'string' ? p.date : '',
-        points: normaliserPoints(p && p.points)
-      }))
+      etudes: (Array.isArray(d.etudes) ? d.etudes : d.palettes).map(normaliserEntree)
     }));
 }
 
@@ -2640,7 +2698,7 @@ regC.addEventListener('input', () => {
   requestAnimationFrame(() => { dessinerRoue(); dessinerLc(); });
 });
 
-/* ==================== Bibliothèque (dossiers + palettes) ==================== */
+/* ==================== Bibliothèque (dossiers d'études) ==================== */
 
 /* La bibliothèque vit uniquement sur le compte — rien n'est stocké dans le
    navigateur. Sauver = pousser vers le compte. */
@@ -2648,25 +2706,81 @@ let bib = { dossiers: [] };
 
 function sauverBib() { planifierPousseCloud(); }
 
-/* Suppression en deux clics (pas de boîte de dialogue bloquante). */
-function armerSuppr(btn, action) {
+/* Action en deux clics : le premier arme, le second exécute. Pas de boîte de
+   dialogue bloquante. Le libellé d'origine est restauré si rien ne suit. */
+function armerAction(btn, libelleArme, action) {
+  const libelle = btn.textContent;
+  const desarmer = () => { btn.classList.remove('confirme'); btn.textContent = libelle; };
   btn.addEventListener('click', e => {
     e.preventDefault(); e.stopPropagation();
-    if (btn.classList.contains('confirme')) { action(); return; }
-    btn.classList.add('confirme'); btn.textContent = 'sûr ?';
-    setTimeout(() => { btn.classList.remove('confirme'); btn.textContent = '✕'; }, 2000);
+    if (btn.classList.contains('confirme')) { desarmer(); action(); return; }
+    btn.classList.add('confirme'); btn.textContent = libelleArme;
+    setTimeout(desarmer, 2000);
   });
+}
+function armerSuppr(btn, action) { armerAction(btn, 'sûr ?', action); }
+
+/* ---------- L'état courant vu comme une étude ---------- */
+
+function etudeCourante() {
+  return {
+    points: JSON.parse(JSON.stringify(points)),
+    colorants: JSON.parse(JSON.stringify(spectres.colorants)),
+    actif: spectres.actif,
+    melange: {
+      colorants: [...melange.colorants],
+      cible: melange.cible,
+      gamme: melange.gamme,
+      masse: melange.masse
+    }
+  };
+}
+
+function resumeEtude(e) {
+  let essais = 0, photos = 0;
+  for (const c of e.colorants) {
+    for (const t of TYPES_ESSAIS) {
+      for (const x of c.essais[t]) { essais++; if (x.photo) photos++; }
+    }
+  }
+  return { colorants: e.colorants.length, essais, photos };
+}
+
+/* Charger une étude remplace tout l'état de travail — c'est pourquoi le geste
+   est armé en deux clics dans la liste. */
+function appliquerEtude(brut) {
+  const e = normaliserEtude(brut);
+  points = e.points;
+  spectres.colorants = e.colorants;
+  spectres.actif = e.actif;
+  melange = e.melange;
+  pointOuvert = null;
+  sauverPoints(); sauverSpectres(); sauverMelange();
+  document.getElementById('mel-masse').value = melange.masse;
+  majTout(true);      // palette, références de colorants, canvas
+  majMelange(true);   // recalcule la formule pour la cible rechargée
+  majSpectres();      // panneaux Analyse spectrale et Carte d'identité
+}
+
+function texteResume(r) {
+  const bouts = [];
+  if (r.colorants) bouts.push(`${r.colorants} colorant${r.colorants > 1 ? 's' : ''}`);
+  if (r.essais) bouts.push(`${r.essais} essai${r.essais > 1 ? 's' : ''}`);
+  if (r.photos) bouts.push(`${r.photos} photo${r.photos > 1 ? 's' : ''}`);
+  return bouts.join(' · ');
 }
 
 function rendreBib() {
-  const total = bib.dossiers.reduce((t, d) => t + d.palettes.length, 0);
+  const total = bib.dossiers.reduce((t, d) => t + d.etudes.length, 0);
   document.getElementById('badge-bib').textContent = total || '';
   const zone = document.getElementById('bib-dossiers');
   zone.textContent = '';
   if (!bib.dossiers.length) {
     const p = document.createElement('p');
     p.className = 'bib-vide';
-    p.textContent = 'Aucune palette enregistrée pour l’instant.';
+    p.textContent = utilisateur
+      ? 'Aucune étude enregistrée pour l’instant.'
+      : 'Connectez-vous pour retrouver vos études.';
     zone.appendChild(p);
     return;
   }
@@ -2678,40 +2792,69 @@ function rendreBib() {
     const nomD = document.createElement('span');
     nomD.className = 'nom-dossier'; nomD.textContent = `📁 ${dos.nom}`;
     const compte = document.createElement('span');
-    compte.className = 'compte'; compte.textContent = dos.palettes.length;
+    compte.className = 'compte'; compte.textContent = dos.etudes.length;
     const supD = document.createElement('button');
-    supD.className = 'suppr'; supD.textContent = '✕'; supD.title = 'Supprimer le dossier';
-    armerSuppr(supD, () => { bib.dossiers.splice(di, 1); sauverBib(); rendreBib(); });
+    supD.className = 'suppr'; supD.textContent = '✕'; supD.title = 'Supprimer le dossier et ses études';
+    armerSuppr(supD, () => {
+      const perdues = dos.etudes.slice();
+      bib.dossiers.splice(di, 1);
+      sauverBib(); rendreBib();
+      perdues.forEach(e => supprimerEtudeCloud(e.id));
+    });
     sum.append(nomD, compte, supD);
     det.appendChild(sum);
     det.addEventListener('toggle', () => { dos.ouvert = det.open; sauverBib(); });
 
-    dos.palettes.forEach((pal, pi) => {
+    dos.etudes.forEach((ent, pi) => {
       const ligne = document.createElement('div');
       ligne.className = 'pal-ligne';
       const ap = document.createElement('span');
       ap.className = 'apercu';
-      pal.points.slice(0, 5).forEach(p => {
+      ent.apercu.forEach(p => {
         const sw = document.createElement('i');
         sw.style.background = rgbToCss(labToRgb(p.L, p.a, p.b));
         ap.appendChild(sw);
       });
+      const bloc = document.createElement('span');
+      bloc.className = 'pal-bloc';
       const nom = document.createElement('button');
       nom.className = 'pal-nom';
-      nom.textContent = pal.nom;
-      nom.title = pal.date ? `Charger cette palette (${pal.date})` : 'Charger cette palette';
+      nom.textContent = ent.nom;
+      nom.title = ent.date ? `Charger cette étude (${ent.date})` : 'Charger cette étude';
+      armerAction(nom, 'Charger ?', () => chargerEtude(ent));
       nom.addEventListener('click', () => {
-        points = normaliserPoints(pal.points);
-        majTout(true);
+        if (nom.classList.contains('confirme')) {
+          messageBib('Charger remplace la palette, les analyses et le mélange en cours.');
+        }
       });
+      const res = document.createElement('span');
+      res.className = 'pal-resume';
+      res.textContent = texteResume(ent.resume) || (ent.points ? 'palette seule' : '');
+      bloc.append(nom, res);
       const sup = document.createElement('button');
-      sup.className = 'suppr'; sup.textContent = '✕'; sup.title = 'Supprimer cette palette';
-      armerSuppr(sup, () => { dos.palettes.splice(pi, 1); sauverBib(); rendreBib(); });
-      ligne.append(ap, nom, sup);
+      sup.className = 'suppr'; sup.textContent = '✕'; sup.title = 'Supprimer cette étude';
+      armerSuppr(sup, () => {
+        dos.etudes.splice(pi, 1);
+        sauverBib(); rendreBib();
+        supprimerEtudeCloud(ent.id);
+      });
+      ligne.append(ap, bloc, sup);
       det.appendChild(ligne);
     });
     zone.appendChild(det);
   });
+}
+
+/* Une entrée d'avant porte sa palette dans l'index ; une étude complète vit
+   dans son propre document et se lit à la demande. */
+async function chargerEtude(ent) {
+  try {
+    const brut = ent.points ? { points: ent.points } : await lireEtudeCloud(ent.id);
+    appliquerEtude(brut);
+    messageBib(`Étude « ${ent.nom} » chargée.`);
+  } catch (e) {
+    messageBib(`Chargement impossible : ${e.message}`);
+  }
 }
 
 const formSave = document.getElementById('form-save');
@@ -2732,25 +2875,45 @@ function majChampNouveau() { inpNouveau.hidden = selDossier.value !== 'nouveau';
 selDossier.addEventListener('change', majChampNouveau);
 document.getElementById('save-annuler').addEventListener('click', () => formSave.classList.remove('ouvert'));
 
-document.getElementById('save-ok').addEventListener('click', () => {
+const btnSaveOk = document.getElementById('save-ok');
+btnSaveOk.addEventListener('click', async () => {
+  if (!utilisateur) { messageBib('Connectez-vous pour enregistrer sur votre compte.'); return; }
   const nom = document.getElementById('save-nom').value.trim() || 'Sans titre';
+  const etude = etudeCourante();
+  const id = nouvelId();
+
+  btnSaveOk.disabled = true;
+  messageBib('Enregistrement…');
+  try {
+    await ecrireEtudeCloud(id, etude);
+  } catch (e) {
+    messageBib(`Enregistrement impossible : ${e.message}`);
+    btnSaveOk.disabled = false;
+    return;
+  }
+  btnSaveOk.disabled = false;
+
+  // L'index n'est complété qu'une fois l'étude écrite : pas d'entrée qui
+  // pointerait vers un document inexistant.
   let dos;
   if (selDossier.value === 'nouveau') {
-    const nomDos = inpNouveau.value.trim() || 'Mes palettes';
+    const nomDos = inpNouveau.value.trim() || 'Mes études';
     dos = bib.dossiers.find(d => d.nom === nomDos);
-    if (!dos) { dos = { nom: nomDos, palettes: [] }; bib.dossiers.push(dos); }
+    if (!dos) { dos = { nom: nomDos, ouvert: true, etudes: [] }; bib.dossiers.push(dos); }
   } else {
-    dos = bib.dossiers[+selDossier.value];
+    dos = bib.dossiers[+selDossier.value] || bib.dossiers[0];
   }
-  dos.palettes.push({
-    nom,
+  dos.etudes.push({
+    id, nom,
     date: new Date().toISOString().slice(0, 10),
-    points: JSON.parse(JSON.stringify(points))
+    apercu: etude.points.slice(0, 5),
+    resume: resumeEtude(etude)
   });
   sauverBib(); rendreBib();
   formSave.classList.remove('ouvert');
   document.getElementById('save-nom').value = '';
   inpNouveau.value = '';
+  messageBib(`Étude « ${nom} » enregistrée.`);
 });
 
 const bibNote = document.getElementById('bib-note');
@@ -2760,37 +2923,91 @@ function messageBib(txt) {
   setTimeout(() => { bibNote.textContent = bibNoteInitiale; }, 4000);
 }
 
-document.getElementById('btn-export').addEventListener('click', () => {
-  const blob = new Blob(
-    [JSON.stringify({ version: 1, dossiers: bib.dossiers }, null, 2)],
-    { type: 'application/json' });
+/* L'export lit chaque étude et emporte tout, photos comprises : c'est la
+   sauvegarde complète, sans le plafond d'un document Firestore. */
+const btnExport = document.getElementById('btn-export');
+btnExport.addEventListener('click', async () => {
+  btnExport.disabled = true;
+  messageBib('Préparation de l’export…');
+  const dossiers = [];
+  try {
+    for (const d of bib.dossiers) {
+      const etudes = [];
+      for (const ent of d.etudes) {
+        const brut = ent.points ? { points: ent.points } : await lireEtudeCloud(ent.id);
+        etudes.push({ nom: ent.nom, date: ent.date, ...normaliserEtude(brut) });
+      }
+      dossiers.push({ nom: d.nom, etudes });
+    }
+  } catch (e) {
+    messageBib(`Export impossible : ${e.message}`);
+    btnExport.disabled = false;
+    return;
+  }
+  btnExport.disabled = false;
+  const blob = new Blob([JSON.stringify({ version: 2, dossiers }, null, 2)],
+                        { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'roue-lab-bibliotheque.json';
+  a.download = 'chromatheque-bibliotheque.json';
   a.click();
   URL.revokeObjectURL(a.href);
+  const n = dossiers.reduce((t, d) => t + d.etudes.length, 0);
+  messageBib(`Export : ${n} étude${n > 1 ? 's' : ''}, photos comprises.`);
 });
 
 const fichierImport = document.getElementById('fichier-import');
 document.getElementById('btn-import').addEventListener('click', () => fichierImport.click());
-fichierImport.addEventListener('change', () => {
+/* Accepte les deux formats : v1 (dossiers de palettes) et v2 (dossiers
+   d'études complètes). Chaque étude importée devient un document à part. */
+fichierImport.addEventListener('change', async () => {
   const f = fichierImport.files[0];
   if (!f) return;
-  f.text().then(t => {
-    const d = JSON.parse(t);
-    const dossiers = normaliserDossiers(Array.isArray(d) ? d : d.dossiers);
-    if (!dossiers.length) throw new Error('format');
-    let n = 0;
-    for (const dos of dossiers) {
-      const cible = bib.dossiers.find(x => x.nom === dos.nom);
-      if (cible) cible.palettes.push(...dos.palettes);
-      else bib.dossiers.push(dos);
-      n += dos.palettes.length;
-    }
-    sauverBib(); rendreBib();
-    messageBib(`Import réussi : ${n} palette${n > 1 ? 's' : ''}.`);
-  }).catch(() => messageBib('Fichier illisible — attendu : un export JSON de cette page.'));
   fichierImport.value = '';
+  if (!utilisateur) { messageBib('Connectez-vous pour importer sur votre compte.'); return; }
+
+  let brut;
+  try {
+    brut = JSON.parse(await f.text());
+  } catch (e) {
+    messageBib('Fichier illisible — attendu : un export JSON de cette page.');
+    return;
+  }
+  const source = Array.isArray(brut) ? brut : (brut && brut.dossiers);
+  if (!Array.isArray(source) || !source.length) {
+    messageBib('Fichier illisible — attendu : un export JSON de cette page.');
+    return;
+  }
+
+  messageBib('Import en cours…');
+  let n = 0, refuses = 0;
+  for (const dos of source) {
+    if (!dos || typeof dos !== 'object') continue;
+    const liste = Array.isArray(dos.etudes) ? dos.etudes
+                : Array.isArray(dos.palettes) ? dos.palettes : [];
+    const nomDos = texteBorne(dos.nom ?? 'Importé', 120);
+    let cible = bib.dossiers.find(x => x.nom === nomDos);
+    if (!cible) { cible = { nom: nomDos, ouvert: true, etudes: [] }; bib.dossiers.push(cible); }
+    for (const brute of liste) {
+      const etude = normaliserEtude(brute);
+      const id = nouvelId();
+      try {
+        await ecrireEtudeCloud(id, etude);
+      } catch (e) { refuses++; continue; }
+      cible.etudes.push({
+        id,
+        nom: texteBorne((brute && brute.nom) ?? 'Sans titre', 120),
+        date: dateBornee(brute && brute.date),
+        apercu: etude.points.slice(0, 5),
+        resume: resumeEtude(etude)
+      });
+      n++;
+    }
+  }
+  sauverBib(); rendreBib();
+  messageBib(refuses
+    ? `Import : ${n} étude${n > 1 ? 's' : ''}, ${refuses} refusée${refuses > 1 ? 's' : ''} (trop lourdes).`
+    : `Import réussi : ${n} étude${n > 1 ? 's' : ''}.`);
 });
 
 /* ==================== Compte & synchronisation (Firebase) ====================
@@ -2889,12 +3106,12 @@ async function connexionCompte() {
 
 /* Fusion sans perte : union des dossiers par nom, des palettes par (nom, date). */
 function fusionnerDossiers(distants, locaux) {
-  const res = distants.map(d => ({ ...d, palettes: [...d.palettes] }));
+  const res = distants.map(d => ({ ...d, etudes: [...d.etudes] }));
   for (const dl of locaux) {
     const cible = res.find(d => d.nom === dl.nom);
     if (!cible) { res.push(dl); continue; }
-    for (const p of dl.palettes) {
-      if (!cible.palettes.some(q => q.nom === p.nom && q.date === p.date)) cible.palettes.push(p);
+    for (const p of dl.etudes) {
+      if (!cible.etudes.some(q => q.nom === p.nom && q.date === p.date)) cible.etudes.push(p);
     }
   }
   return res;
@@ -2935,6 +3152,45 @@ function planifierPousseCloud() {
       messageBib(`Synchronisation impossible : ${e.message}`);
     }
   }, 1200);
+}
+
+/* ---------- Une étude, un document ----------
+   Un document Firestore est plafonné à 1 Mio. Le tenir par étude plutôt que
+   pour toute la bibliothèque est ce qui permet d'y mettre les photos d'essai :
+   une seule pèse 100 à 200 Ko. On refuse d'écrire au-delà de la marge plutôt
+   que de laisser le serveur rejeter la requête avec un message obscur. */
+const MAX_ETUDE = 900000;
+
+function refEtudes() {
+  return fbDb.collection('bibliotheques').doc(utilisateur.uid).collection('etudes');
+}
+
+async function ecrireEtudeCloud(id, etude) {
+  if (!fbDb || !utilisateur) throw new Error('compte non connecté');
+  const octets = new Blob([JSON.stringify(etude)]).size;
+  if (octets > MAX_ETUDE) {
+    throw new Error(`étude trop lourde (${Math.round(octets / 1024)} Ko) — un document est limité à 1 Mio, retirez des photos d’essai`);
+  }
+  await refEtudes().doc(id).set({ ...etude, maj: new Date().toISOString() });
+}
+
+async function lireEtudeCloud(id) {
+  if (!fbDb || !utilisateur) throw new Error('compte non connecté');
+  if (!id) throw new Error('étude sans identifiant');
+  const doc = await refEtudes().doc(id).get();
+  if (!doc.exists) throw new Error('étude introuvable sur le compte');
+  return doc.data();
+}
+
+/* L'index a déjà été mis à jour : l'échec de la suppression du document ne
+   doit pas faire réapparaître l'entrée, seulement se dire. */
+async function supprimerEtudeCloud(id) {
+  if (!fbDb || !utilisateur || !id) return;
+  try {
+    await refEtudes().doc(id).delete();
+  } catch (e) {
+    messageBib(`Étude retirée de la liste, mais non supprimée du compte : ${e.message}`);
+  }
 }
 
 /* ==================== Quasi plein écran ==================== */
