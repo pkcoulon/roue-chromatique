@@ -1,5 +1,5 @@
 ============================================================
-ROUE CHROMATIQUE CIE L*a*b* — roue_lab.py
+CHROMATHÈQUE — version bureau, roue_lab.py
 ============================================================
 
 LANCEMENT

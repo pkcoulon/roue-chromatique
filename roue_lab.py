@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Roue chromatique CIE L*a*b*
-===========================
+Chromathèque — version bureau
+=============================
 
 Génère deux visualisations de l'espace CIE L*a*b* (illuminant D65) :
 
