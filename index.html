@@ -199,6 +199,7 @@
   .vue-onglet[aria-selected="true"] {
     background: var(--accent-fond); border-color: var(--accent-bord); color: var(--accent);
   }
+  .vue-onglet .sm { display: none; }
   .tete-outils { margin-left: auto; display: flex; align-items: center; gap: var(--e-1); }
   .tete-sep { width: 1px; height: 20px; background: var(--hairline); }
 
@@ -674,8 +675,15 @@
     gap: var(--e-3) var(--e-4);
   }
   /* Onglets : une navigation, pas trois boutons alignés à droite */
-  .onglets { display: flex; border-bottom: 1px solid var(--hairline); margin-bottom: var(--e-4); }
+  /* Trois libellés d'essai ne tiennent pas sur un téléphone : la barre défile
+     latéralement plutôt que de déborder de la carte ou de perdre ses mots. */
+  .onglets {
+    display: flex; border-bottom: 1px solid var(--hairline); margin-bottom: var(--e-4);
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .onglets::-webkit-scrollbar { display: none; }
   .onglet {
+    flex: 0 0 auto;
     height: 36px; padding: 0 var(--e-4);
     border: none; border-radius: 0; background: none;
     color: var(--ink-2); font: var(--t-dense)/1 var(--f-sys);
@@ -797,6 +805,26 @@
     #cv-lc { aspect-ratio: 10 / 7; max-height: 62vh; }
   }
 
+  /* Téléphone : l'en-tête ne tient plus sur une ligne. Les trois vues passent
+     en seconde ligne, à libellé court et à largeur égale ; les outils gardent
+     leurs mots — une icône muette coûte plus cher qu'une seconde ligne. */
+  @media (max-width: 740px) {
+    :root { --h-tete: 92px; }
+    .tete { flex-wrap: wrap; align-content: center; gap: var(--e-2); padding: 0 var(--e-3); }
+    .vues { order: 3; flex-basis: 100%; gap: var(--e-1); }
+    .vue-onglet { flex: 1; min-width: 0; padding: 0 var(--e-2); }
+    .vue-onglet .lg { display: none; }
+    .vue-onglet .sm { display: inline; }
+    .tete-outils { gap: 0; }
+    .tete-sep { display: none; }
+    main { padding: var(--e-3); }
+    aside { padding: var(--e-3); }
+    /* Le spectre a trois lignes de légende dans le tracé : à 350 px de large,
+       un rapport 16/7 les fait chevaucher la courbe. */
+    #cv-spectre { aspect-ratio: 5 / 4; }
+    .spc-grille { grid-template-columns: 1fr; }
+  }
+
   /* ==================== Quasi plein écran ==================== */
 
   .card.plein {
@@ -849,9 +877,9 @@
   <button id="btn-tiroir" class="discret" title="Outils de la vue" aria-label="Afficher les outils de la vue">☰</button>
   <span class="marque">Chromathèque</span>
   <nav class="vues" role="tablist" aria-label="Affichage">
-    <button class="vue-onglet" role="tab" data-choix-vue="roue">Roue chromatique</button>
-    <button class="vue-onglet" role="tab" data-choix-vue="spectre">Analyse spectrale</button>
-    <button class="vue-onglet" role="tab" data-choix-vue="identite">Carte d'identité</button>
+    <button class="vue-onglet" role="tab" data-choix-vue="roue"><span class="lg">Roue chromatique</span><span class="sm">Roue</span></button>
+    <button class="vue-onglet" role="tab" data-choix-vue="spectre"><span class="lg">Analyse spectrale</span><span class="sm">Spectre</span></button>
+    <button class="vue-onglet" role="tab" data-choix-vue="identite"><span class="lg">Carte d'identité</span><span class="sm">Identité</span></button>
   </nav>
   <div class="tete-outils">
     <button class="discret" data-surface="surf-bib">Bibliothèque</button>
@@ -3280,7 +3308,11 @@ function dessinerSpectre() {
     ctx.beginPath(); ctx.arc(X(ana.lMax), Y(ana.Amax), 4.5, 0, 7);
     ctx.fillStyle = coulAna; ctx.fill();
     ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 1.5; ctx.stroke();
-    pilule(ctx, X(ana.lMax), Math.max(mg.ht + 10, Y(ana.Amax) - 16),
+    // La pilule du sommet ne doit pas retomber dans le bloc de légende : sur un
+    // canvas étroit (téléphone), celui-ci occupe toute la largeur utile.
+    const nLeg = (ech ? 1 : 0) + (ref ? 1 : 0) + (anaEch && anaRef ? 1 : 0);
+    const yLibre = w < 520 ? mg.ht + 14 + nLeg * 16 + 8 : mg.ht + 10;
+    pilule(ctx, X(ana.lMax), Math.max(yLibre, Y(ana.Amax) - 16),
            `A max ${fmtSpc.A(ana.Amax)} · ${fmtSpc.nm(ana.lMax)} nm`, 'center');
   }
 
