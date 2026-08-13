@@ -667,8 +667,12 @@
 
   .combo { position: relative; }
   .combo-champ { cursor: pointer; }
+  /* `position: fixed` et non `absolute` : la colonne défile (overflow:auto) et
+     le contenu d'un <details> est en `overflow: clip` pendant l'animation de
+     dépliage — les deux coupaient la liste. Fixe, elle échappe aux deux, au
+     prix d'un placement calculé en JS et d'une fermeture au défilement. */
   .combo-liste {
-    position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 40;
+    position: fixed; z-index: 90;
     background: var(--card); border: 1px solid var(--hairline-fort);
     border-radius: var(--r-2); padding: var(--e-1);
     box-shadow: var(--ombre-2);
@@ -1439,11 +1443,28 @@ function creerComboColorant(hote, { valeur, surChoix, placeholder }) {
       liste.appendChild(opt);
     });
   };
+  /* La liste étant fixe, son placement est calculé : sous le champ, ou
+     au-dessus quand le bas de la fenêtre est trop proche. */
+  const placer = () => {
+    const r = champ.getBoundingClientRect();
+    liste.style.left = `${Math.round(r.left)}px`;
+    liste.style.width = `${Math.round(r.width)}px`;
+    const dispoBas = window.innerHeight - r.bottom - 8;
+    const voulu = Math.min(240, liste.scrollHeight || 240);
+    if (dispoBas < voulu && r.top > dispoBas) {
+      liste.style.top = 'auto';
+      liste.style.bottom = `${Math.round(window.innerHeight - r.top + 5)}px`;
+    } else {
+      liste.style.bottom = 'auto';
+      liste.style.top = `${Math.round(r.bottom + 5)}px`;
+    }
+  };
   const ouvrir = () => {
     ouvert = true; liste.hidden = false;
     champ.setAttribute('aria-expanded', 'true');
     filtre = ''; surligne = -1;
     rendre();
+    placer();
   };
 
   champ.addEventListener('focus', () => { ouvrir(); champ.select(); });
@@ -1457,6 +1478,7 @@ function creerComboColorant(hote, { valeur, surChoix, placeholder }) {
       champ.setAttribute('aria-expanded', 'true');
     }
     rendre();
+    placer();
   });
   champ.addEventListener('blur', () => setTimeout(fermer, 0));
   champ.addEventListener('keydown', e => {
@@ -1478,11 +1500,18 @@ function creerComboColorant(hote, { valeur, surChoix, placeholder }) {
     }
   });
 
-  const api = { hote, rafraichir: () => (ouvert ? rendre() : majTexte()) };
+  const api = { hote, fermer, rafraichir: () => (ouvert ? rendre() : majTexte()) };
   combos.push(api);
   majTexte();
   return api;
 }
+/* Une liste fixe ne suit pas le défilement de la colonne : on la ferme.
+   Écouteur unique et en capture — les combos sont recréés à chaque rendu, un
+   écouteur par instance s'accumulerait. */
+window.addEventListener('scroll', () => {
+  for (const c of combos) if (c.fermer) c.fermer();
+}, true);
+
 /* Certains combos sont reconstruits avec leur panneau : on oublie au passage
    ceux dont l'hôte a quitté le document, sinon la liste enflerait sans fin. */
 function rafraichirCombos() {
@@ -2451,7 +2480,7 @@ cvRoue.addEventListener('dblclick', e => {
   const a = Math.round((pos.x - geoRoue.cx) / geoRoue.ech);
   const b = Math.round((geoRoue.cy - pos.y) / geoRoue.ech);
   if (Math.hypot(a, b) > cMax) return;
-  points.push({ nom: `Point ${points.length + 1}`, L: lFond, a, b, fixe: true });
+  points.push(normaliserPoint({ nom: `Point ${points.length + 1}`, L: lFond, a, b, fixe: true }));
   majTout(true);
 });
 cvRoue.addEventListener('pointerleave', () => {
@@ -2624,7 +2653,9 @@ function rendreListe() {
 }
 
 document.getElementById('btn-ajouter').addEventListener('click', () => {
-  points.push({ nom: 'Nouveau', L: 60, a: 20, b: 20 });
+  // Toujours par le normaliseur : c'est lui qui pose l'identifiant stable
+  // auquel se rattachent les analyses, les mélanges et la ligne ouverte.
+  points.push(normaliserPoint({ nom: 'Nouveau', L: 60, a: 20, b: 20 }));
   majTout(true);
 });
 document.getElementById('btn-reset').addEventListener('click', () => {
@@ -4736,6 +4767,11 @@ function majTout(refaireListe) {
   document.getElementById('badge-spectre').textContent = points.length || '';
   const titre = document.getElementById('id-titre');
   titre.textContent = spectres.actif ? `Carte d'identité — ${nomColorantActif()}` : "Carte d'identité";
+  // La composition de la palette a changé : les panneaux qui en dépendent
+  // doivent être refaits. Sans ça, une palette remplie depuis la vue Roue
+  // laissait « Aucun colorant » affiché dans la Carte d'identité. On ne le
+  // fait pas sur le chemin rapide : il tourne à chaque image d'un glisser.
+  if (refaireListe) { rendreSpectrePanneau(); rendreResultatsSpectre(); rendreIdentite(); }
   requestAnimationFrame(redessiner);
 }
 
