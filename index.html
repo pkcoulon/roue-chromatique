@@ -1601,7 +1601,8 @@ function sauverPoints() {
 /* Encres fixes des surfaces graphiques (toujours sombres). */
 const G = {
   fond: '#101014', encre: '#E6E6EA', encre2: '#9A9AA2',
-  trait: '#3A3A42', pilule: 'rgba(26,26,32,0.9)', piluleBord: '#4A4A52'
+  trait: '#3A3A42', pilule: 'rgba(26,26,32,0.9)', piluleBord: '#4A4A52',
+  ombre: 'rgba(0,0,0,0.55)', lisere: 'rgba(255,255,255,0.8)'
 };
 
 /* ====================== Utilitaires canvas ====================== */
@@ -1632,6 +1633,19 @@ function pilule(ctx, x, y, texte, align = 'left') {
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   ctx.fillText(texte, x0 + 7, y + 0.5);
   return [x0, x0 + larg, y0, y0 + haut];
+}
+
+function pastille(ctx, x, y, r, css, carre = false) {
+  const k = ctx.getTransform().a;
+  ctx.beginPath();
+  if (carre) ctx.roundRect(x - r, y - r, 2 * r, 2 * r, r / 2);
+  else ctx.arc(x, y, r, 0, 7);
+  ctx.save();
+  ctx.shadowColor = G.ombre; ctx.shadowBlur = 5 * k; ctx.shadowOffsetY = 1 * k;
+  ctx.fillStyle = css; ctx.fill();
+  ctx.restore();
+  ctx.lineWidth = 1.25; ctx.strokeStyle = G.lisere;
+  ctx.stroke();
 }
 
 /* ==================== Roue du plan (a, b) ==================== */
@@ -1725,10 +1739,7 @@ function dessinerRoue() {
     const rgb = labToRgb(p.L, p.a, p.b);
     const { x: px, y: py } = hitsRoue[i];
     const actif = i === survol.roue;
-    ctx.beginPath(); ctx.arc(px, py, actif ? 11 : 9, 0, 7);
-    ctx.fillStyle = rgbToCss(rgb); ctx.fill();
-    ctx.lineWidth = 2; ctx.strokeStyle = p.L < 50 ? '#FFFFFF' : '#000000';
-    ctx.stroke();
+    pastille(ctx, px, py, actif ? 11 : 9, rgbToCss(rgb));
 
     if (!p.fixe && !actif) return;
     const norme = Math.hypot(p.a, p.b);
@@ -1741,10 +1752,7 @@ function dessinerRoue() {
   // Colorants du mélange : carrés, pour les distinguer des points de palette
   colorantsMelange().forEach(c => {
     const x = cx + c.a * ech, y = cy - c.b * ech;
-    ctx.beginPath(); ctx.roundRect(x - 8, y - 8, 16, 16, 4);
-    ctx.fillStyle = rgbToCss(labToRgb(c.L, c.a, c.b)); ctx.fill();
-    ctx.lineWidth = 2; ctx.strokeStyle = c.L < 50 ? '#FFFFFF' : '#000000';
-    ctx.stroke();
+    pastille(ctx, x, y, 8, rgbToCss(labToRgb(c.L, c.a, c.b)), true);
   });
 
   // Cible visée et teinte réellement obtenue par la formule
@@ -2393,10 +2401,7 @@ function dessinerLc() {
     const { x, y } = hitsLc[i];
     const actif = i === survol.lc;
 
-    ctx.beginPath(); ctx.arc(x, y, actif ? 11 : 9, 0, 7);
-    ctx.fillStyle = rgbToCss(rgb); ctx.fill();
-    ctx.lineWidth = 2; ctx.strokeStyle = p.L < 50 ? '#FFFFFF' : '#000000';
-    ctx.stroke();
+    pastille(ctx, x, y, actif ? 11 : 9, rgbToCss(rgb));
 
     if (!p.fixe && !actif) return;
     const texte = `${p.nom} · ${rgbToHex(rgb)}`;
